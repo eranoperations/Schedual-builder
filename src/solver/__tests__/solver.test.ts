@@ -71,15 +71,15 @@ describe('solver', () => {
     expect(r.lessons.some((l) => l.day === 0 && l.roomIds.includes(d.ids.R1))).toBe(false)
   })
 
-  it('reports proven infeasibility with plain-language reasons and a valid partial timetable', () => {
+  it('reports proven infeasibility with plain-language reasons and no timetable', () => {
     const d = tinySchool()
     d.school.rules = { maxTeacherDailyHours: 2 } // Dana: 5 hours, 2 working days × 2 = 4
     const r = solve(d, { seed: 1, ...FAST, timeLimitMs: 3000 })
     expect(r.status).toBe('infeasible')
     expect(r.reasons.map((i) => i.code)).toContain('E_TEACHER_DAILY_CAPACITY')
-    expect(verifyTimetable(d, r.lessons).hardViolations.filter((i) => i.code !== 'V_GROUP_HOURS')).toEqual([])
-    expect(r.unplaced.reduce((a, u) => a + u.count, 0)).toBeGreaterThanOrEqual(1)
-    expect(r.unplaced[0].reason.code).toMatch(/^U_/)
+    // Blocking errors short-circuit the search: no lessons, no unplaced diagnosis.
+    expect(r.lessons).toEqual([])
+    expect(r.stats.placementAttempts).toBe(0)
   })
 
   it('distinguishes "not found in time" (incomplete) from impossible', () => {
@@ -125,5 +125,17 @@ describe('solver', () => {
     expect(verifyTimetable(d, r.lessons).hardViolations).toEqual([])
     expect(r.status).toBe('complete')
     expect(r.stats.elapsedMs).toBeLessThan(60000)
+  })
+})
+
+describe('infeasible short-circuit (QA orphaned-friday)', () => {
+  it('returns no lessons when a blocking validation error exists', () => {
+    const d = sampleSchoolProject()
+    d.teachers[0].dayOff = 5 // Friday is not a teaching day in sunThu → E_TEACHER_DAY_OFF_INVALID
+    const r = solve(d, FAST)
+    expect(r.status).toBe('infeasible')
+    expect(r.reasons.some((i) => i.code === 'E_TEACHER_DAY_OFF_INVALID')).toBe(true)
+    expect(r.lessons).toEqual([])
+    expect(r.unplaced).toEqual([])
   })
 })

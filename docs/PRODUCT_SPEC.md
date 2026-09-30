@@ -77,7 +77,10 @@ Slot: {
 - **Explicit slots, generated from a pattern.** The scheduler can generate a bell schedule from start time, period length, breaks (after period N, M minutes) and end time, then edit any slot's times, add or remove slots, or add a zero hour. The stored truth is the explicit slot list [R §1].
 - **Per-day schedules.** Each teaching day points to one bell schedule, so a short Friday is just a second schedule.
 - **Doubles.** Two consecutive lesson slots form a double only if the first is `joinableWithNext`. A lesson slot followed by a break isn't joinable by default, but the school can allow it. The span from the first slot's start to the second slot's end may not exceed `rules.maxJoinedLessonMinutes` (default 100).
-- **Zero hour.** Lesson slots with index 0 are used only when `rules.allowZeroHour` is on (default off).
+- **Zero hour.** Lesson slots with index 0 are used only when `rules.allowZeroHour` is on (default off). The pattern's zero-hour option adds one lesson slot of the period length that ends at the start time, never joinable with P1. A zero-hour slot that exists while the rule is off is kept but unused, with an info note. Zero-hour lessons count toward X and the daily cap like any other lesson.
+- **Pattern generation rules (clarified 2026-09-30, from QA):**
+  - A break always takes its full time. If the next period wouldn't fit before the end time once the break is taken, the day ends after the current period, and no trailing break is added. So 08:00 start, 45-minute periods, a 20-minute break after P2 and a 10:20 end gives 2 periods, not 3. A period may never overlap break time.
+  - `maxPeriods` (optional, 1–24) caps the numbered periods 1..N. It doesn't count the zero hour. Generation stops at whichever comes first, the cap or the end time. The Friday template uses it (5 periods).
 - **Validation:** slots in ascending order with no overlap, start before end, at least one lesson slot per teaching day, and the max-joined check on joinable pairs.
 - **Templates at school creation:**
   - *Sun to Thu* (default): 08:00 start, 45-minute periods, breaks of 20 minutes after P2, 15 after P4 and 10 after P6, giving 8 periods ending 14:45. P1–2, P3–4, P5–6 and P7–8 are joinable.
@@ -326,4 +329,7 @@ Agreed with Website Design Bot on 2026-09-30 (design spec v1.1).
 - **No room for a group:** a group's effective room requirement is its own `room` override if set, otherwise the subject's `defaultRoom`. It needs no room when that effective requirement is `none`. That can be inherited from a subject (e.g. an online subject) or set on the group (e.g. outdoor PE for one class).
 - **No "remove from timetable":** every group must get exactly its weekly hours, so a placed lesson can't simply be removed. To teach fewer hours, edit the group in the planning sheet, which marks the timetable outdated.
 - **' and " conversion** applies in every text field, but only next to Hebrew letters, so English names like O'Brien stay intact.
+- **Orphaned room blocks** follow the same rule as other block entries: a **warning**, and the solver ignores the entry.
+- **At least two teaching days.** Every teacher needs exactly one day off on a teaching day, so a school must have at least 2 teaching days. Setup and Settings don't allow unticking below 2, and stored or imported data with fewer is an **error** that blocks Generate.
+- **X counts frontal hours only** (every lesson placed in the timetable, including zero hour). This is the behaviour to build and test. The [OPEN] marker in §2.2 only waits on Eran's confirmation.
 - **School year / terms:** not in v0.6. They come with timetable versions in Phase 2.

@@ -64,13 +64,15 @@ export function generateSlots(p: BellPattern): Slot[] {
   if (p.zeroHour && t - len >= 0) {
     slots.push({ id: newId(), index: 0, type: 'lesson', start: formatTime(t - len), end: formatTime(t), joinableWithNext: false })
   }
-  const cap = Math.min(p.maxPeriods ?? 24, 24)
+  const cap = Math.max(1, Math.min(Math.floor(p.maxPeriods ?? 24), 24)) // numbered periods only; zero hour doesn't count
   for (let idx = 1; idx <= cap; idx++) {
     if (t + len > end) break
     slots.push({ id: newId(), index: idx, type: 'lesson', start: formatTime(t), end: formatTime(t + len), joinableWithNext: false })
     t += len
     const brk = p.breaks.filter((b) => b.afterPeriod === idx && b.durationMin > 0).reduce((a, b) => a + Math.floor(b.durationMin), 0)
-    if (brk > 0 && t + brk + len <= end && idx < cap) {
+    if (brk > 0) {
+      // A break is never dropped: the next period starts after it, and only if it still ends by endTime.
+      if (t + brk + len > end || idx >= cap) break
       slots.push({ id: newId(), index: idx, type: 'break', start: formatTime(t), end: formatTime(t + brk), joinableWithNext: false })
       t += brk
     }
@@ -210,6 +212,7 @@ export function validateWeek(week: Week, rules?: Rules): Issue[] {
   const out: Issue[] = []
   const days = teachingDays(week)
   if (!days.length) out.push({ code: 'E_WEEK_NO_DAYS', severity: 'error', params: {}, ref: { kind: 'week' } })
+  else if (days.length < 2) out.push({ code: 'E_WEEK_TOO_FEW_DAYS', severity: 'error', params: { count: days.length, min: 2 }, ref: { kind: 'week' } })
   if (!week.bellSchedules.length) out.push({ code: 'E_WEEK_NO_BELL_SCHEDULES', severity: 'error', params: {}, ref: { kind: 'week' } })
   for (const d of days) {
     const bs = bellScheduleFor(week, d)

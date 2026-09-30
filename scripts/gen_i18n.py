@@ -220,6 +220,7 @@ k('validate.goTo','מעבר ל{{place}}','Go to {{place}}')
 # Issues (params: names are resolved; {{day}} is replaced by the day name at render time)
 I = {
  'E_WEEK_NO_DAYS':('לא נבחרו ימי לימודים.','No teaching days are selected.'),
+ 'E_WEEK_TOO_FEW_DAYS':('צריך לפחות {{min}} ימי לימודים (נבחרו {{count}}).','At least {{min}} teaching days are needed ({{count}} selected).'),
  'E_WEEK_NO_BELL_SCHEDULES':('אין לוח צלצולים.','There is no bell schedule.'),
  'E_WEEK_DAY_NO_SCHEDULE':('ליום {{day}} לא שויך לוח צלצולים.','{{day}} has no bell schedule.'),
  'E_BELL_DUPLICATE_SLOT_ID':('בלוח הצלצולים ״{{schedule}}״: מזהה כפול בשורה {{slot}}.','Bell schedule "{{schedule}}": duplicate id in row {{slot}}.'),

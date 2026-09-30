@@ -475,6 +475,7 @@
   "kind.cluster": "Cluster",
   "validate.goTo": "Go to {{place}}",
   "issues.E_WEEK_NO_DAYS": "No teaching days are selected.",
+  "issues.E_WEEK_TOO_FEW_DAYS": "At least {{min}} teaching days are needed ({{count}} selected).",
   "issues.E_WEEK_NO_BELL_SCHEDULES": "There is no bell schedule.",
   "issues.E_WEEK_DAY_NO_SCHEDULE": "{{day}} has no bell schedule.",
   "issues.E_BELL_DUPLICATE_SLOT_ID": "Bell schedule \"{{schedule}}\": duplicate id in row {{slot}}.",

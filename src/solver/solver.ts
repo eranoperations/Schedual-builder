@@ -18,7 +18,7 @@ import { Board, buildSessions } from './board'
 import { compile, type Compiled } from './compile'
 import { nameLookup } from './names'
 import { applyAssignment, greedyAssign, reassignForConflicts } from './assign'
-import { optimize } from './optimize'
+import { optimize, type OptimizeResult } from './optimize'
 import { placeSessions } from './place'
 import { qualityReport } from './quality'
 import { createRng, subSeed } from './rng'
@@ -149,14 +149,15 @@ export function* solveSteps(
   // ---- phase 2: local search ----------------------------------------------------
   const tOpt = Date.now()
   const og = optimize(board, createRng(subSeed(seed, 777)), cancelled || blocking.length ? 0 : options.optimizeIterations, deadline, stop)
-  let o = og.next()
+  // Blocking validation errors: no placement and no local search (it would also fill pending sessions).
+  let o = blocking.length ? { done: true as const, value: { starts: board.sstart, rooms: board.srooms, iterations: 0, initialScore: 0, finalScore: 0 } satisfies OptimizeResult } : og.next()
   while (!o.done) {
     yield { phase: 'optimize', percent: 60 + (40 * o.value.iteration) / Math.max(1, o.value.iterations), iteration: o.value.iteration, iterations: o.value.iterations, score: o.value.best, pending: o.value.pending }
     o = og.next()
   }
   const optimizeMs = Date.now() - tOpt
-  const lessons = toLessons(cp, board, o.value.starts, o.value.rooms)
-  const unplaced = diagnoseUnplaced(cp, board, o.value.starts, o.value.rooms)
+  const lessons = blocking.length ? [] : toLessons(cp, board, o.value.starts, o.value.rooms)
+  const unplaced = blocking.length ? [] : diagnoseUnplaced(cp, board, o.value.starts, o.value.rooms)
 
   const totalHours = cp.groups.reduce((a, g) => a + g.hours, 0)
   const placedHours = lessons.reduce((a, l) => a + l.slotIds.length, 0)

@@ -7,7 +7,8 @@ export function timetableFromResult(p: SchoolProject, r: SolveResult, name: stri
 }
 
 export const acceptedTimetable = (p: SchoolProject) => p.timetables.find((x) => x.status === 'accepted')
-export const draftTimetable = (p: SchoolProject) => p.timetables.find((x) => x.status === 'draft')
+/** Latest draft; an infeasible result (no lessons) is never treated as a timetable. */
+export const draftTimetable = (p: SchoolProject) => p.timetables.find((x) => x.status === 'draft' && x.result.status !== 'infeasible')
 
 /** Draft → accepted; the previous accepted timetable is replaced. Mutates the project clone. */
 export function acceptDraft(p: SchoolProject) {

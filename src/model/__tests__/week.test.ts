@@ -92,3 +92,41 @@ describe('bell schedules', () => {
     expect(resolveRules({ maxTeacherDailyHours: 7 }).maxTeacherDailyHours).toBe(7)
   })
 })
+
+describe('generateSlots never drops a break (QA week bug)', () => {
+  const lessons = (end: string) => generateSlots({ ...DEFAULT_PATTERN, endTime: end }).filter((s) => s.type === 'lesson')
+  it('end 10:20 → 2 periods (P3 would start after the 20-min break and end 10:35)', () => {
+    const l = lessons('10:20')
+    expect(l.map((s) => s.index)).toEqual([1, 2])
+    expect(l[1].end).toBe('09:30')
+  })
+  it('end 13:50 → 6 periods, no P7 without the 10-min break', () => {
+    const l = lessons('13:50')
+    expect(l.length).toBe(6)
+    expect(l[5].end).toBe('13:05')
+  })
+  it('no lesson ever overlaps a break, default 14:45 still gives 8 periods', () => {
+    const s = generateSlots(DEFAULT_PATTERN)
+    expect(s.filter((x) => x.type === 'lesson').length).toBe(8)
+    for (let i = 1; i < s.length; i++) expect(s[i].start >= s[i - 1].end).toBe(true)
+    expect(s[s.length - 1].type).toBe('lesson')
+  })
+})
+
+describe('week rules (PRODUCT_SPEC §2.1/§10)', () => {
+  it('end 10:20 leaves no dangling break after P2', () => {
+    const s = generateSlots({ ...DEFAULT_PATTERN, endTime: '10:20' })
+    expect(s.map((x) => x.type)).toEqual(['lesson', 'lesson'])
+  })
+  it('fewer than 2 teaching days is a blocking error', () => {
+    const w = weekFromTemplate('sunThu')
+    w.days = [0]
+    expect(validateWeek(w).some((i) => i.code === 'E_WEEK_TOO_FEW_DAYS' && i.severity === 'error')).toBe(true)
+  })
+  it('maxPeriods caps numbered periods; zero hour is extra and not joinable', () => {
+    const s = generateSlots({ ...DEFAULT_PATTERN, maxPeriods: 3, zeroHour: true }).filter((x) => x.type === 'lesson')
+    expect(s.map((x) => x.index)).toEqual([0, 1, 2, 3])
+    expect(s[0].end).toBe('08:00')
+    expect(s[0].joinableWithNext).toBe(false)
+  })
+})

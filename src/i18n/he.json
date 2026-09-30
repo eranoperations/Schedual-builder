@@ -475,6 +475,7 @@
   "kind.cluster": "אשכול",
   "validate.goTo": "מעבר ל{{place}}",
   "issues.E_WEEK_NO_DAYS": "לא נבחרו ימי לימודים.",
+  "issues.E_WEEK_TOO_FEW_DAYS": "צריך לפחות {{min}} ימי לימודים (נבחרו {{count}}).",
   "issues.E_WEEK_NO_BELL_SCHEDULES": "אין לוח צלצולים.",
   "issues.E_WEEK_DAY_NO_SCHEDULE": "ליום {{day}} לא שויך לוח צלצולים.",
   "issues.E_BELL_DUPLICATE_SLOT_ID": "בלוח הצלצולים ״{{schedule}}״: מזהה כפול בשורה {{slot}}.",

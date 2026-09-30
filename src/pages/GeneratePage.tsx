@@ -6,7 +6,7 @@ import { Alert, Badge, Button, Card, PageHeader, Select, StatusIcon } from '../c
 import { formatDateTime, issueText } from '../i18n/format'
 import { acceptDraft, acceptedTimetable, draftTimetable, timetableFromResult } from '../lib/timetables'
 import { weightsFromPreferences } from '../model/preferences'
-import type { SolveResult } from '../model/types'
+import type { Issue, SolveResult } from '../model/types'
 import { validate, type SolveProgress } from '../solver'
 import { runSolver, type SolveJob } from '../worker/client'
 
@@ -18,6 +18,7 @@ export function GeneratePage() {
   const [limit, setLimit] = useState(60)
   const [progress, setProgress] = useState<SolveProgress | null>(null)
   const [error, setError] = useState<string | null>(null)
+  const [blocked, setBlocked] = useState<Issue[] | null>(null)
   const [started, setStarted] = useState(0)
   const [now, setNow] = useState(0)
   const job = useRef<SolveJob | null>(null)
@@ -36,7 +37,7 @@ export function GeneratePage() {
   useEffect(() => () => job.current?.cancel(), [])
 
   const start = () => {
-    setError(null)
+    setError(null); setBlocked(null)
     setStarted(Date.now()); setNow(Date.now())
     setProgress({ phase: 'validate', percent: 0 } as SolveProgress)
     const { timetables: _tt, ...snapshot } = p
@@ -44,6 +45,8 @@ export function GeneratePage() {
     const j = runSolver(snapshot, { timeLimitMs: limit * 1000, seed: Date.now() % 100000, weights: weightsFromPreferences(p.school.preferences) }, setProgress)
     job.current = j
     j.promise.then((r: SolveResult) => {
+      // An infeasible result is never presented as a timetable: show the blocking errors instead.
+      if (r.status === 'infeasible') { setBlocked(r.reasons); return }
       update((d) => {
         d.timetables = d.timetables.filter((x) => x.status !== 'draft')
         d.timetables.push(timetableFromResult(d, r, formatDateTime(i18n.language, new Date().toISOString())))
@@ -89,21 +92,22 @@ export function GeneratePage() {
           </div>
         )}
         {error && <Alert className="mt-4" severity="error" title={error} />}
+        {blocked && (
+          <Alert className="mt-4" severity="error" title={t('gen.impossible')}>
+            <ul className="list-disc ps-5">{blocked.map((x, k) => <li key={k}>{issueText(t, x)}</li>)}</ul>
+            <Button className="mt-2" size="sm" onClick={() => go('validate')}>{t('step.validate')}</Button>
+          </Alert>
+        )}
       </Card>
 
       {draft && r && !running && (
         <Card title={<span className="flex items-center gap-2">{t('gen.newReady')} <Badge>{t('timetable.status.draft')}</Badge></span>}
           actions={<>
-            <Button variant="primary" onClick={() => update(acceptDraft)} disabled={r.status === 'infeasible'}><Check />{t('action.accept')}</Button>
+            <Button variant="primary" onClick={() => update(acceptDraft)}><Check />{t('action.accept')}</Button>
             <Button onClick={() => go('timetable')} data-testid="view-timetable">{t('action.viewTimetable')}</Button>
             <Button variant="ghost" onClick={() => update((d) => { d.timetables = d.timetables.filter((x) => x.status !== 'draft') })}><X />{t('action.discard')}</Button>
           </>}>
           {r.status === 'complete' && <Alert severity="success" title={t('gen.success')}>{t('gen.allPlaced', { placed: r.stats.placedHours, total: r.stats.totalHours })}</Alert>}
-          {r.status === 'infeasible' && (
-            <Alert severity="error" title={t('gen.impossible')}>
-              <ul className="list-disc ps-5">{r.reasons.map((x, k) => <li key={k}>{issueText(t, x)}</li>)}</ul>
-            </Alert>
-          )}
           {(r.status === 'incomplete' || r.status === 'cancelled') && (
             <Alert severity="warning" title={r.status === 'cancelled' ? t('gen.cancelled') : t('gen.notFound', { min: Math.round(limit / 60) })}>
               {t('gen.progress', { placed: r.stats.placedHours, total: r.stats.totalHours })}
