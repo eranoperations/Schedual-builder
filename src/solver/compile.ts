@@ -23,8 +23,14 @@ export interface CGroup {
   doubles: number
   singles: number
   room: CRoomReq
-  /** all teachers qualified, references valid, hours consistent */
+  /** Static validity (references, hours, room, fixed teachers qualified / auto group has a candidate). */
+  baseValid: boolean
+  /** baseValid AND a resolved teacher exists (auto groups: after `applyAssignment`). Used by the search. */
   valid: boolean
+  /** No fixed teacher: the solver picks one of `candidates`. */
+  auto: boolean
+  /** Auto groups: qualified teacher indices (empty for fixed groups). */
+  candidates: number[]
 }
 
 export interface Compiled {
@@ -144,13 +150,18 @@ export function compile(data: SchoolSnapshot, weightOverrides: Partial<SoftWeigh
     else if (req === 'homeroom') room = { kind: 'homeroom' }
     else if ('roomId' in req) room = roomIdx.has(req.roomId) ? { kind: 'room', room: roomIdx.get(req.roomId)! } : { kind: 'invalid' }
     else room = (roomsOfType.get(req.roomTypeId)?.length ?? 0) ? { kind: 'type', rooms: roomsOfType.get(req.roomTypeId)! } : { kind: 'invalid' }
+    const auto = g.teacherIds.length === 0
     const qualified = g.teacherIds.every((id) => data.teachers.find((t) => t.id === id)?.subjectIds.includes(g.subjectId))
-    const valid = subj >= 0 && teachers.length > 0 && classes.length > 0 && teachers.every((t) => t >= 0) &&
-      classes.every((c) => c >= 0) && qualified && doubles * 2 <= hours && room.kind !== 'invalid' &&
+    const candidates: number[] = []
+    if (auto) data.teachers.forEach((t, ti) => { if (t.subjectIds.includes(g.subjectId)) candidates.push(ti) })
+    const baseValid = subj >= 0 && (auto ? candidates.length > 0 : teachers.every((t) => t >= 0)) && classes.length > 0 &&
+      classes.every((c) => c >= 0) && qualified && hours > 0 && doubles * 2 <= hours && room.kind !== 'invalid' &&
       (room.kind !== 'homeroom' || classes.every((c) => classHomeroom[c] >= 0))
+    const resolved = auto ? [] : teachers.filter((t) => t >= 0)
     return {
-      id: g.id, subj, teachers: teachers.filter((t) => t >= 0), classes: classes.filter((c) => c >= 0),
-      hours, doubles: Math.min(doubles, Math.floor(hours / 2)), singles: hours - 2 * Math.min(doubles, Math.floor(hours / 2)), room, valid,
+      id: g.id, subj, teachers: resolved, classes: classes.filter((c) => c >= 0),
+      hours, doubles: Math.min(doubles, Math.floor(hours / 2)), singles: hours - 2 * Math.min(doubles, Math.floor(hours / 2)), room,
+      baseValid, valid: baseValid && resolved.length > 0, auto, candidates,
     }
   })
   const groupIdx = new Map(groups.map((g, i) => [g.id, i]))

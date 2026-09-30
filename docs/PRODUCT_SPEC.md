@@ -1,7 +1,7 @@
 # Product Spec: School Timetable Builder
 
-Status: draft v0.5 (2026-09-30) · Owner: Product Bot · Items still open are marked **[OPEN]**.
-**Freeze:** sections 2, 3 and 5 are frozen at v0.5 until the first working solve. Later changes are queued in section 9 and released together as v0.6.
+Status: draft v0.6 (2026-09-30). v0.6 = manual editing, subject short names, local school switcher and continuous validation, released after the first working solve. · Owner: Product Bot · Items still open are marked **[OPEN]**.
+**Change process:** model changes are batched into numbered releases and sent to Code Agent together. Wording fixes can happen anytime.
 Background research: `/workspace/research/israeli-school-timetable.md` (cited below as [R §n]).
 
 ## 0. Decisions
@@ -40,16 +40,20 @@ Every record has a UUID `id` generated client-side and a `schoolId` (except `Sch
 | **School** | id, name, optional institutionCode (סמל מוסד), `week` (2.1), `rules` (3.2), `preferences` (3.3) |
 | **RoomType** | id, schoolId, name. Defined by the school. A new school is seeded with editable suggestions: classroom, science lab, computer room, gym, art room, music room, library |
 | **Room** | id, schoolId, name, roomTypeId, optional capacity |
-| **Subject** | id, schoolId, name, optional ministryCode, colour, `defaultRoom`: `homeroom` \| `{ roomTypeId }` \| `none` (online/outdoor, no room needed) |
+| **Subject** | id, schoolId, name, `shortName` (v0.6: an abbreviation for compact cells, auto-suggested and editable), optional ministryCode, `colour` (a palette token key `subject-1`…`subject-12`), `defaultRoom`: `homeroom` \| `{ roomTypeId }` \| `none` (online/outdoor, no room needed) |
 | **Teacher** | id, schoolId, name, maxWeeklyHours (X, an upper limit), optional maxDailyHours (overrides the school rule, e.g. the teacher agreed to 7), subjectIds they can teach, dayOff (exactly one of the school's teaching days, required) |
 | **Class** (כיתת אם) | id, schoolId, grade (integer 7 to 9), parallel (integer), displayName (auto-formatted, e.g. ז'3, editable), homeroomRoomId, optional homeroomTeacherId |
-| **StudyGroup** (קבוצת לימוד) | id, schoolId, subjectId, `teacherIds[]`, `classIds[]`, weeklyHours, `doubles` (how many of the weekly hours must be taught as double periods, default 0), optional `room` override (same shape as Subject.defaultRoom, or `{ roomId }` for a specific room), `clusterId` *(reserved)*, `level` *(reserved)*. **MVP UI: exactly one teacher and one class per group.** The solver and checker handle arrays from day one. |
+| **StudyGroup** (קבוצת לימוד) | id, schoolId, subjectId, `teacherIds[]`, `classIds[]`, weeklyHours, `doubles` (how many of the weekly hours must be taught as double periods, default 0), optional `room` override (same shape as Subject.defaultRoom, or `{ roomId }` for a specific room), `clusterId` *(reserved)*, `level` *(reserved)*. **Teacher is optional (v0.5.1):** if `teacherIds` is set, the teacher is fixed, which is usual Israeli practice. If it's empty, the solver assigns one qualified teacher. **MVP UI: zero or one teacher and exactly one class per group.** The solver and checker handle arrays from day one. |
 | **Cluster** *(reserved)* | id, schoolId, name, studyGroupIds[]. All member groups must be placed in identical slots (for level groups and majors) |
 | **Block** (חסם) | id, schoolId, target `{ type: teacher \| class \| room \| grade \| school, id? }`, `when`: list of `{ day, slotIds? }` (no slotIds = whole day), hardness `hard` \| `soft`, optional note |
-| **Timetable** | id, schoolId, name, createdAt, status (draft or accepted), lessons[], qualityReport |
-| **Lesson** (placed) | studyGroupId, day, slotIds[] (one slot, or two for a double), roomIds[] (one per class, empty if no room is needed), `pinned` *(reserved)* |
+| **Timetable** | id, schoolId, name, createdAt, status (draft or accepted), `teacherAssignments: { [studyGroupId]: teacherId[] }` (the resolved teachers of every group, fixed or solver-chosen), lessons[], qualityReport |
+| **Lesson** (placed) | studyGroupId, teacherIds[] (resolved), day, slotIds[] (one slot, or two for a double), roomIds[] (one per class, empty if no room is needed), `pinned` *(reserved)* |
 
-A class's weekly hours equal the sum of its study groups' hours. A teacher's weekly hours equal the sum of their groups' hours. In the MVP, X counts teaching (frontal) hours only. Individual and stay hours arrive with reform-aware positions later [R §3]. **[OPEN]**
+A class's weekly hours equal the sum of its study groups' hours. A teacher's weekly hours equal the sum of the hours of groups where they are fixed or were assigned by the solver.
+
+**Teacher assignment (v0.5.1):** for groups with no fixed teacher, the solver picks exactly one teacher per group. That teacher is qualified for the subject, teaches every lesson of the group, and must fit within their X, daily cap, day off and blocks together with their other groups. Fixed teachers are never changed. Implementation is up to the solver (e.g. a flow-based assignment stage before placement, with backtracking if placement fails).
+
+ In the MVP, X counts teaching (frontal) hours only. Individual and stay hours arrive with reform-aware positions later [R §3]. **[OPEN]**
 
 ### 2.1 Week and bell schedules (configurable per school)
 
@@ -91,9 +95,9 @@ Slot: {
 2. **Hours:** each study group gets exactly `weeklyHours`, with exactly `doubles` double lessons and the rest as singles.
 3. **Doubles:** a double uses two consecutive lesson slots on the same day, the first marked joinable, spanning no more than `maxJoinedLessonMinutes`.
 4. **Valid slots:** lessons go only in lesson slots on teaching days. Zero-hour slots are used only if allowed.
-5. **Qualification:** every teacher of a group is qualified for its subject.
+5. **Qualification and assignment:** every group has at least one resolved teacher (fixed, or assigned by the solver when blank). All of a group's lessons use the same resolved teacher(s), and every resolved teacher is qualified for the subject.
 6. **Day off:** a teacher never teaches on their day off.
-7. **Weekly cap:** a teacher's placed hours are at most X.
+7. **Weekly cap:** a teacher's placed hours (fixed plus solver-assigned groups) are at most X.
 8. **Daily cap:** a teacher's placed hours per day are at most their maxDailyHours, which defaults to `rules.maxTeacherDailyHours` (default 6) [R §5].
 9. **Rooms:** each class in a lesson gets a room that satisfies the group's room requirement (its own homeroom, any free room of the required type, the specific room, or none). The room must be free and not hard-blocked.
 10. **Hard blocks:** no lesson in a slot or day that is hard-blocked for any of its teachers, classes, rooms, their grade, or the whole school.
@@ -189,8 +193,8 @@ As a scheduler, I want to define my own room types and rooms.
 **US-6: Planning sheet (study groups)**
 As a scheduler, I want to set who teaches what to which class, and how many hours, in one grid.
 - AC1: The grid shows classes as rows and subjects as columns. Filling a cell with a teacher, weekly hours, a number of doubles and an optional room override creates a study group.
-- AC2: Only teachers qualified for the subject are offered.
-- AC3: Row totals (class hours against the lesson slots in its week) and teacher totals (against X) update live, and over-limit values are highlighted.
+- AC2: The teacher field is optional. Only teachers qualified for the subject are offered, and an empty cell shows "Auto" (אוטומטי), meaning the solver will choose. After a solve, auto cells show the assigned teacher in a distinct style, and I can "fix" that choice with one click.
+- AC3: Row totals (class hours against the lesson slots in its week) and teacher totals (fixed hours against X, plus auto-assigned hours after a solve) update live. Each subject also shows the hours in auto groups against the free capacity of qualified teachers. Over-limit values are highlighted.
 - AC4: I can copy one class's row to other classes in the same grade, then change teachers.
 - AC5: Doubles × 2 can't exceed weekly hours.
 
@@ -200,11 +204,13 @@ As a scheduler, I want to mark when teachers, classes, rooms, grades or the whol
 - AC2: Settings show the rules (max teacher hours per day, default 6; max joined lesson length, default 100 minutes; allow zero hour, default off) with defaults applied to new schools.
 
 **US-8: Pre-solve validation**
-- AC1: Generate first runs checks. Blocking errors are listed with links to the record to fix.
+- AC1 (v0.6): The checks run continuously as data changes, with an issues count always visible, and Generate re-runs them. Blocking errors are listed with links to the record to fix, and Generate routes to them instead of solving.
 - AC2: The checks cover at least these cases:
-  - a group whose teacher isn't qualified;
+  - a group whose fixed teacher isn't qualified;
+  - a group with no fixed teacher and no qualified teacher at all;
+  - for a subject, the hours in auto groups exceeding the free capacity (X minus fixed hours) of its qualified teachers, and overall assignment feasibility (a bipartite or flow check across subjects that share teachers);
   - class hours greater than its available lesson slots;
-  - teacher hours greater than X;
+  - fixed teacher hours greater than X;
   - teacher hours greater than daily cap × working days, or greater than the unblocked slots on those days;
   - a room requirement with no matching room;
   - a class missing a homeroom;
@@ -219,13 +225,13 @@ As a scheduler, I want to mark when teachers, classes, rooms, grades or the whol
 
 **US-10: Explain infeasibility**
 - AC1: The message distinguishes "impossible" from "not found within the time limit".
-- AC2: For impossible cases, at least one concrete conflict is named in plain language, e.g. "Dana: 26 hours but only 4 working days × 6 per day = 24".
+- AC2: For impossible cases, at least one concrete conflict is named in plain language, e.g. "Dana: 26 hours but only 4 working days × 6 per day = 24", or "Math: auto groups need 30 hours but qualified teachers have only 24 free".
 
 **US-11: View timetables**
 - AC1: A selector switches between class, teacher and room views.
 - AC2: Columns are the teaching days in week order (Sunday on the right in Hebrew) and rows are slots labelled with their times. Breaks show as thin rows. Days with fewer slots show the missing rows empty.
 - AC3: A double shows as one cell spanning two slots. Cells show subject plus teacher, class and room as relevant, using the subject's colour.
-- AC4: The teacher view shows hours against X and daily hours.
+- AC4: The teacher view shows hours against X (fixed plus auto-assigned) and daily hours.
 
 **US-12: Save, export and print**
 - AC1: All data persists across reloads.
@@ -242,6 +248,27 @@ As a scheduler, I want to mark when teachers, classes, rooms, grades or the whol
 - AC1: Hebrew is the default, and a switcher changes the whole UI to English and back without losing data. The choice is remembered.
 - AC2: The layout is RTL in Hebrew and LTR in English, including grids and print. Times stay LTR.
 - AC3: No hardcoded UI strings. The build fails if a translation key is missing in either language.
+
+**US-16: Move or swap a lesson by drag and drop (v0.6)**
+As a scheduler, I want to adjust the generated timetable by hand.
+- AC1: In any view I can drag a lesson to another slot. Valid targets are highlighted, and invalid ones are marked while dragging.
+- AC2: Dropping on an empty valid slot moves the lesson. Dropping on another lesson swaps them if both moves are valid.
+- AC3: A drop that would break any hard constraint is refused, with a "why" explanation (e.g. teacher busy, day off, block, room taken, daily cap). There is no override.
+- AC4: A double moves as a unit and only onto a joinable pair.
+- AC5: After each edit the checker and quality report update, and edits can be undone and redone.
+
+**US-17: Keyboard "Move to" dialog (v0.6)**
+- AC1: With a lesson focused, a keyboard shortcut or menu opens "Move to", listing the valid day and slot targets (and swap targets). Choosing one does the same as a drag.
+- AC2: Invalid targets are listed as disabled with their reason, and screen readers announce the result.
+
+**US-18: Lock lessons and re-solve (v0.6)**
+- AC1: I can lock or unlock any lesson (`Lesson.pinned`), and locked lessons show a lock icon. A lesson I move by hand is locked automatically, and I can unlock it.
+- AC2: "Re-solve" keeps every locked lesson (slot, teacher and room) fixed and rearranges the rest.
+- AC3: If the locks make the problem impossible, the explanation names the locked lessons involved.
+
+**US-19: Several local schools (v0.6)**
+- AC1: I can create, rename, switch and delete schools stored locally. Deleting asks for confirmation.
+- AC2: Loading the demo creates a separate demo school and never overwrites mine.
 
 **US-15: Demo data**
 - AC1: One button loads a realistic grades 7 to 9 school (several parallels per grade, study groups based on the Ministry middle school hours [R §2], homerooms, labs, a gym, some blocks) that solves successfully.
@@ -265,7 +292,7 @@ As a scheduler, I want to mark when teachers, classes, rooms, grades or the whol
 3. **Teacher hours:** for the MVP, does X cover teaching hours only, with individual and stay hours (פרטני/שהייה) added later?
 4. **Preference defaults:** are the defaults in 3.3 right (everything on except balanced teacher load)?
 
-## 9. Queued for v0.6 (after the first working solve)
+## 9. v0.6 release notes (released 2026-09-30, after the first working solve)
 
 Reconciled with Website Design Bot's `/workspace/timetable-design/design-spec.md` §14 on 2026-09-30. Priority order:
 
@@ -280,4 +307,20 @@ Reconciled with Website Design Bot's `/workspace/timetable-design/design-spec.md
 3. **Several local schools with a switcher.** The multi-school model already supports it. Locally, a user can create, switch and delete schools, so the demo school no longer overwrites real data. Phase 2 keeps the same switcher with accounts.
 4. **Continuous validation.** The design runs pre-solve checks continuously and Generate re-runs them. This is a compatible superset of US-8, so update the US-8 wording to match.
 
-Design §14 items already resolved by v0.5 (no v0.6 change): teacher availability (hard/soft teacher Blocks), room types (RoomType entity), fixed teacher per class and subject (StudyGroup.teacherIds), periods of different lengths within a day (explicit bell-schedule slot times), multi-school model. Aligned as-is: teachers teach up to X, timetable versions stay Phase 2, Excel import is hidden until it ships, level groups are later.
+Design §14 items already resolved by v0.5 (no v0.6 change): teacher availability (hard/soft teacher Blocks), room types (RoomType entity), fixed teacher per class and subject (StudyGroup.teacherIds, optional since v0.5.1, so the solver assigns when blank), periods of different lengths within a day (explicit bell-schedule slot times), multi-school model. Aligned as-is: teachers teach up to X, timetable versions stay Phase 2, Excel import is hidden until it ships, level groups are later.
+
+## 10. Clarifications (no model change, apply now)
+
+Agreed with Website Design Bot on 2026-09-30 (design spec v1.1).
+
+- **Multi-school in the MVP means the data model only** (`schoolId` on everything and a school-scoped repository). The MVP UI works on one school and shows just its name. The switcher is v0.6 item 3.
+- **No overrides of hard rules.** Manual edits (v0.6) that violate a hard constraint are refused. There's no "place anyway".
+- **Blank teacher** is valid ("Auto", v0.5.1). It's an error only when no qualified teacher exists for that group.
+- **Orphans after a schedule change:** a teacher's day off on a removed day is an **error** that blocks Generate. A block entry on a removed day or slot is a **warning**, and the solver ignores that entry. The data is kept until the user fixes or deletes it. An existing timetable with lessons on removed slots is marked outdated and must be regenerated.
+- **Available slots:** hard class, grade and school blocks reduce a class's available lesson slots in capacity checks. Soft blocks don't.
+- **Joining across a break** is set per slot through `joinableWithNext`. It defaults to false when a break follows.
+- **Rules** are editable both in setup and in Settings.
+- **Shared homeroom:** two classes may share a homeroom, with a warning. The room clash constraint still applies.
+- **Class names** are stored with Hebrew geresh ׳ (U+05F3) and gershayim ״ (U+05F4), e.g. ז׳3, י״א2. An apostrophe or quote typed by the user is converted to them on input. Examples in this spec that use `'` mean ׳.
+- **No room for a group:** a group needs no room only when its own `room` override is explicitly set to `none` (e.g. outdoor PE). Otherwise it inherits the subject's requirement.
+- **School year / terms:** not in v0.6. They come with timetable versions in Phase 2.

@@ -34,16 +34,37 @@ export function seedRoomTypes(schoolId: string, lang: 'he' | 'en' = 'he'): RoomT
   return ROOM_TYPE_SUGGESTIONS[lang].map((name) => ({ ...scoped(schoolId), name }))
 }
 
-const GRADE_LETTERS: Record<number, string> = { 1: 'א', 2: 'ב', 3: 'ג', 4: 'ד', 5: 'ה', 6: 'ו', 7: 'ז', 8: 'ח', 9: 'ט', 10: 'י', 11: 'י"א', 12: 'י"ב' }
+const GRADE_LETTERS: Record<number, string> = { 1: 'א', 2: 'ב', 3: 'ג', 4: 'ד', 5: 'ה', 6: 'ו', 7: 'ז', 8: 'ח', 9: 'ט', 10: 'י', 11: 'י״א', 12: 'י״ב' }
 
-/** Auto display name, e.g. (7, 3) → ז'3. */
-export function classDisplayName(grade: number, parallel: number): string {
+/** Hebrew grade letter with geresh, e.g. 7 → ז׳ (design-spec §2.1 rule 9: U+05F3/U+05F4, never ASCII quotes). */
+export function gradeLabel(grade: number): string {
   const g = GRADE_LETTERS[grade] ?? String(grade)
-  return g.includes('"') ? `${g}${parallel}` : `${g}'${parallel}`
+  return g.includes('״') || !GRADE_LETTERS[grade] ? g : `${g}׳`
 }
 
+/** Auto display name, e.g. (7, 3) → ז׳3. */
+export function classDisplayName(grade: number, parallel: number): string {
+  const g = GRADE_LETTERS[grade] ?? String(grade)
+  return g.includes('״') ? `${g}${parallel}` : `${g}׳${parallel}`
+}
+
+/**
+ * Subject colours are stored as design-system palette keys ("subject-1".."subject-12";
+ * design-spec §3.4). Order = the spec's auto-assignment order (max distinguishability first).
+ */
 export const SUBJECT_PALETTE = [
-  '#4e79a7', '#f28e2b', '#e15759', '#76b7b2', '#59a14f', '#edc948',
-  '#b07aa1', '#ff9da7', '#9c755f', '#bab0ac', '#86bcb6', '#d37295',
-  '#a0cbe8', '#ffbe7d', '#8cd17d', '#f1ce63',
-]
+  'subject-1', 'subject-9', 'subject-6', 'subject-12', 'subject-10', 'subject-5',
+  'subject-3', 'subject-2', 'subject-11', 'subject-8', 'subject-7', 'subject-4',
+] as const
+export const SUBJECT_COLOR_KEYS = Array.from({ length: 12 }, (_, i) => `subject-${i + 1}`)
+
+/** Next palette key for a new subject (least used first, in auto-assignment order). */
+export function nextSubjectColor(used: string[]): string {
+  let best: string = SUBJECT_PALETTE[0]
+  let bestN = Infinity
+  for (const k of SUBJECT_PALETTE) {
+    const n = used.filter((u) => u === k).length
+    if (n < bestN) { best = k; bestN = n }
+  }
+  return best
+}

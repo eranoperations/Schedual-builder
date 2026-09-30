@@ -8,6 +8,7 @@ import type { Block, Issue, Lesson, SchoolSnapshot, Slot, StudyGroup, Weekday } 
 import { isValidDouble, lessonSlots, teachingDays, bellScheduleFor } from '../model/week'
 import { resolveRoomRequirement } from './compile'
 import { nameLookup } from './names'
+import { lessonTeacherIds } from '../model/lessons'
 
 type Checker = (data: SchoolSnapshot, lessons: Lesson[]) => Issue[]
 
@@ -33,7 +34,7 @@ export const checkClashes: Checker = (data, lessons) => {
     const g = groups.get(l.studyGroupId)
     if (!g) continue
     for (const s of l.slotIds) {
-      for (const t of new Set(g.teacherIds)) push(`teacher|${t}|${l.day}|${s}`, l)
+      for (const t of new Set(lessonTeacherIds(g, l))) push(`teacher|${t}|${l.day}|${s}`, l)
       for (const c of new Set(g.classIds)) push(`class|${c}|${l.day}|${s}`, l)
       for (const r of new Set(l.roomIds)) push(`room|${r}|${l.day}|${s}`, l)
     }
@@ -97,18 +98,32 @@ export const checkValidSlots: Checker = (data, lessons) => {
   return out
 }
 
-/** Every teacher of a group is qualified for its subject. */
+/**
+ * §3.1 #5 qualification and assignment: every lesson has at least one resolved
+ * teacher, fixed teachers are never changed, all lessons of a group use the
+ * same resolved teacher(s), and every resolved teacher is qualified.
+ */
 export const checkQualification: Checker = (data, lessons) => {
   const { groups, teachers, name } = ctx(data)
   const out: Issue[] = []
-  const seen = new Set<string>()
+  const resolved = new Map<string, string>()
+  const key = (ids: string[]) => [...new Set(ids)].sort().join('|')
   for (const l of lessons) {
     const g = groups.get(l.studyGroupId)
-    if (!g || seen.has(g.id)) continue
-    seen.add(g.id)
-    for (const tid of g.teacherIds) {
-      if (!teachers.get(tid)?.subjectIds.includes(g.subjectId)) out.push(err('V_TEACHER_NOT_QUALIFIED', { teacher: name(tid), subject: name(g.subjectId) }, { kind: 'teacher', id: tid }))
-    }
+    if (!g) continue
+    const p = { subject: name(g.subjectId), class: g.classIds.map(name).join(', ') }
+    const ref = { kind: 'group' as const, id: g.id }
+    const ts = lessonTeacherIds(g, l)
+    if (!ts.length) { out.push(err('V_GROUP_NO_TEACHER', p, ref)); continue }
+    if (g.teacherIds.length && key(ts) !== key(g.teacherIds)) out.push(err('V_FIXED_TEACHER_CHANGED', { ...p, teacher: ts.map(name).join(', ') }, ref))
+    const k = key(ts)
+    const prev = resolved.get(g.id)
+    if (prev === undefined) {
+      resolved.set(g.id, k)
+      for (const tid of new Set(ts)) {
+        if (!teachers.get(tid)?.subjectIds.includes(g.subjectId)) out.push(err('V_TEACHER_NOT_QUALIFIED', { teacher: name(tid), subject: name(g.subjectId) }, { kind: 'teacher', id: tid }))
+      }
+    } else if (prev !== k) out.push(err('V_GROUP_TEACHER_INCONSISTENT', p, ref))
   }
   return out
 }
@@ -118,7 +133,8 @@ export const checkDayOff: Checker = (data, lessons) => {
   const { groups, teachers, name } = ctx(data)
   const out: Issue[] = []
   for (const l of lessons) {
-    for (const tid of groups.get(l.studyGroupId)?.teacherIds ?? []) {
+    const g = groups.get(l.studyGroupId)
+    for (const tid of g ? new Set(lessonTeacherIds(g, l)) : []) {
       if (teachers.get(tid)?.dayOff === l.day) out.push(err('V_TEACHER_DAY_OFF', { teacher: name(tid), day: l.day }, { kind: 'teacher', id: tid }))
     }
   }
@@ -130,7 +146,8 @@ function teacherHours(data: SchoolSnapshot, lessons: Lesson[]) {
   const total = new Map<string, number>()
   const daily = new Map<string, number>()
   for (const l of lessons) {
-    for (const tid of new Set(groups.get(l.studyGroupId)?.teacherIds ?? [])) {
+    const g = groups.get(l.studyGroupId)
+    for (const tid of g ? new Set(lessonTeacherIds(g, l)) : []) {
       total.set(tid, (total.get(tid) ?? 0) + l.slotIds.length)
       daily.set(`${tid}|${l.day}`, (daily.get(`${tid}|${l.day}`) ?? 0) + l.slotIds.length)
     }
@@ -197,7 +214,7 @@ function blockCovers(b: Block, day: Weekday, slotId: string): boolean {
 export function blockHitsLesson(data: SchoolSnapshot, b: Block, g: StudyGroup, l: Lesson): boolean {
   const t = b.target
   if (t.type === 'school') return true
-  if (t.type === 'teacher') return g.teacherIds.includes(t.id ?? '')
+  if (t.type === 'teacher') return lessonTeacherIds(g, l).includes(t.id ?? '')
   if (t.type === 'class') return g.classIds.includes(t.id ?? '')
   if (t.type === 'room') return l.roomIds.includes(t.id ?? '')
   if (t.type === 'grade') return g.classIds.some((cid) => String(data.classes.find((c) => c.id === cid)?.grade) === String(t.id))

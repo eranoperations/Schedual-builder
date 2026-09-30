@@ -17,6 +17,7 @@ import type { Issue, Lesson, SchoolSnapshot, SolveResult, SolverOptions, Unplace
 import { Board, buildSessions } from './board'
 import { compile, type Compiled } from './compile'
 import { nameLookup } from './names'
+import { applyAssignment, greedyAssign, reassignForConflicts } from './assign'
 import { optimize } from './optimize'
 import { placeSessions } from './place'
 import { qualityReport } from './quality'
@@ -61,6 +62,7 @@ export function toLessons(cp: Compiled, board: Board, starts: Int32Array, rooms:
     const s2 = board.second(board.slen[i], s)
     out.push({
       studyGroupId: g.id,
+      teacherIds: g.teachers.map((t) => cp.data.teachers[t].id),
       day: cp.slots.days[cp.slots.slotDay[s]],
       slotIds: board.slen[i] === 2 ? [cp.slots.slot[s].id, cp.slots.slot[s2].id] : [cp.slots.slot[s].id],
       roomIds: rooms[i].map((r) => cp.data.rooms[r].id),
@@ -94,7 +96,16 @@ export function* solveSteps(
   let best: { starts: Int32Array; rooms: number[][]; hours: number } | null = null
   let nodes = 0
   let attempts = 0
-  for (let a = 0; a < Math.max(1, options.maxAttempts); a++) {
+  // Teacher assignment for auto groups (v0.5.1): greedy, then conflict-driven reassignment
+  // between placement attempts. Fixed teachers are never changed.
+  const hasAuto = cp.groups.some((G) => G.auto && G.baseValid)
+  const assignRng = createRng(subSeed(seed, 4242))
+  const assignment = greedyAssign(cp, assignRng)
+  applyAssignment(cp, assignment)
+  let bestAssignment = assignment.slice()
+  // Validator errors are proofs of infeasibility: skip the search entirely (fast "infeasible").
+  const maxAttempts = blocking.length ? 0 : Math.max(1, options.maxAttempts)
+  for (let a = 0; a < maxAttempts; a++) {
     const board = new Board(cp, sessions)
     const nodeLimit = Math.max(3000, sessions.length * 20) * luby(a + 1)
     const gen = placeSessions(board, createRng(subSeed(seed, a)), nodeLimit, deadline)
@@ -107,9 +118,29 @@ export function* solveSteps(
     }
     if (!r.done) break // cancelled
     nodes += r.value.nodes
-    if (!best || r.value.placedHours > best.hours) best = { starts: r.value.starts, rooms: r.value.rooms, hours: r.value.placedHours }
-    if (r.value.complete || r.value.exhausted || Date.now() > deadline || stop()) break
+    if (!best || r.value.placedHours > best.hours) {
+      best = { starts: r.value.starts, rooms: r.value.rooms, hours: r.value.placedHours }
+      bestAssignment = assignment.slice()
+    }
+    if (r.value.complete || Date.now() > deadline || stop()) break
+    let changed = false
+    if (hasAuto) {
+      const conflicts = new Int32Array(cp.nTeacher)
+      const unplacedGroups = new Set<number>()
+      for (let i = 0; i < board.size; i++) {
+        if (r.value.starts[i] >= 0) continue
+        const g = board.sg[i]
+        unplacedGroups.add(g)
+        for (const t of cp.groups[g].teachers) conflicts[t]++
+        // teachers of other groups sharing the unplaced group's classes are also involved
+        for (const H of cp.groups) if (H.auto && H.teachers.length && H.classes.some((c) => cp.groups[g].classes.includes(c))) conflicts[H.teachers[0]]++
+      }
+      changed = reassignForConflicts(cp, assignment, conflicts, unplacedGroups, assignRng)
+      if (changed) applyAssignment(cp, assignment)
+    }
+    if (r.value.exhausted && !changed) break
   }
+  applyAssignment(cp, bestAssignment)
   const placementMs = Date.now() - tPlace
   const board = new Board(cp, sessions)
   if (best) for (let i = 0; i < board.size; i++) if (best.starts[i] >= 0) board.place(i, best.starts[i], best.rooms[i])
@@ -117,7 +148,7 @@ export function* solveSteps(
 
   // ---- phase 2: local search ----------------------------------------------------
   const tOpt = Date.now()
-  const og = optimize(board, createRng(subSeed(seed, 777)), cancelled ? 0 : options.optimizeIterations, deadline, stop)
+  const og = optimize(board, createRng(subSeed(seed, 777)), cancelled || blocking.length ? 0 : options.optimizeIterations, deadline, stop)
   let o = og.next()
   while (!o.done) {
     yield { phase: 'optimize', percent: 60 + (40 * o.value.iteration) / Math.max(1, o.value.iterations), iteration: o.value.iteration, iterations: o.value.iterations, score: o.value.best, pending: o.value.pending }
@@ -134,9 +165,12 @@ export function* solveSteps(
     ? 'complete'
     : cancelled ? 'cancelled' : blocking.length ? 'infeasible' : allPlaced ? 'complete' : 'incomplete'
   yield { phase: 'done', percent: 100 }
+  const teacherAssignments: Record<string, string[]> = {}
+  cp.groups.forEach((G, g) => { teacherAssignments[G.id] = G.auto ? G.teachers.map((t) => data.teachers[t].id) : [...data.groups[g].teacherIds] })
   return {
     status,
     lessons,
+    teacherAssignments,
     unplaced,
     reasons: status === 'infeasible' ? blocking : [],
     qualityReport: qualityReport(data, lessons, initialLessons),
@@ -177,11 +211,12 @@ function diagnoseUnplaced(cp: Compiled, board0: Board, starts: Int32Array, rooms
     const base = {
       subject: name(src.subjectId),
       class: src.classIds.map(name).join(', '),
-      teacher: src.teacherIds.map(name).join(', '),
+      teacher: G.teachers.map((t) => cp.data.teachers[t].name).join(', ') || src.teacherIds.map(name).join(', '),
     }
     const mk = (code: string, extra: Issue['params'] = {}): Issue => ({ code, severity: 'error', params: { ...base, ...extra }, ref: { kind: 'group', id: G.id } })
     let reason: Issue
-    if (!G.valid) reason = mk('U_GROUP_INVALID')
+    if (G.auto && G.baseValid && !G.teachers.length) reason = mk('U_NO_TEACHER_AVAILABLE')
+    else if (!G.valid) reason = mk('U_GROUP_INVALID')
     else {
       const { S } = cp
       let starts2 = 0, teacherClassOk = 0, capOk = 0

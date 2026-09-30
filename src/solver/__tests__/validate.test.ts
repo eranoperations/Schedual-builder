@@ -26,7 +26,7 @@ describe('pre-solve validation', () => {
     const d = tinySchool()
     d.groups[0].weeklyHours = 11 // C1: 11 + 2 = 13 > 12 slots
     const e = errors(d).find((i) => i.code === 'E_CLASS_OVER_SLOTS')!
-    expect(e.params).toMatchObject({ class: "ז'1", hours: 13, slots: 12 })
+    expect(e.params).toMatchObject({ class: "ז׳1", hours: 13, slots: 12 })
   })
 
   it('teacher hours greater than X', () => {
@@ -56,7 +56,7 @@ describe('pre-solve validation', () => {
   it('class missing a homeroom', () => {
     const d = tinySchool()
     d.classes[1].homeroomRoomId = null
-    expect(errors(d).find((i) => i.code === 'E_CLASS_NO_HOMEROOM')!.params.class).toBe("ז'2")
+    expect(errors(d).find((i) => i.code === 'E_CLASS_NO_HOMEROOM')!.params.class).toBe("ז׳2")
   })
 
   it('doubles required but no joinable pair on the teacher\'s working days', () => {

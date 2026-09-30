@@ -2,6 +2,7 @@
  * Soft metrics, weighted soft score and the quality report (spec §3.3),
  * computed from model lessons. `softScore` equals the optimiser's objective.
  */
+import { lessonTeacherIds } from '../model/lessons'
 import { MAX_GROUP_HOURS_PER_DAY, resolvePreferences, weightsFromPreferences } from '../model/preferences'
 import type { Lesson, QualityMetric, QualityMetricKey, SchoolSnapshot, SoftWeights, Weekday } from '../model/types'
 import { deriveDays } from '../model/week'
@@ -34,7 +35,7 @@ export function softMetrics(data: SchoolSnapshot, lessons: Lesson[], maxPerDay =
     const g = groups.get(l.studyGroupId)
     if (!g) continue
     const ps = l.slotIds.map((s) => pos.get(`${l.day}:${s}`)).filter((p): p is number => p !== undefined)
-    for (const t of new Set(g.teacherIds)) {
+    for (const t of new Set(lessonTeacherIds(g, l))) {
       const k = `${t}|${l.day}`
       const set = teacherDay.get(k) ?? new Set<number>()
       ps.forEach((p) => set.add(p))
@@ -53,7 +54,7 @@ export function softMetrics(data: SchoolSnapshot, lessons: Lesson[], maxPerDay =
     const hit = soft.some((b) => b.when.some((w) => w.day === l.day && (!w.slotIds?.length || l.slotIds.some((s) => w.slotIds!.includes(s)))) && blockHitsLesson(data, b, g, l))
     if (hit) {
       softBlockLessons++
-      g.teacherIds.forEach((t) => bump(byTeacher.softBlocks, t, 1))
+      lessonTeacherIds(g, l).forEach((t) => bump(byTeacher.softBlocks, t, 1))
       g.classIds.forEach((c) => bump(byClass.softBlocks, c, 1))
     }
   }

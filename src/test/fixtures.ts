@@ -19,12 +19,12 @@ export function tinySchool(): SchoolSnapshot & { ids: Record<string, string> } {
   const R1 = { ...S(), name: 'R1', roomTypeId: classroom.id }
   const R2 = { ...S(), name: 'R2', roomTypeId: classroom.id }
   const LAB = { ...S(), name: 'LAB', roomTypeId: lab.id }
-  const math = { ...S(), name: 'Math', color: '#4e79a7', defaultRoom: 'homeroom' as const }
-  const sci = { ...S(), name: 'Science', color: '#59a14f', defaultRoom: { roomTypeId: lab.id } }
+  const math = { ...S(), name: 'Math', color: 'subject-1', defaultRoom: 'homeroom' as const }
+  const sci = { ...S(), name: 'Science', color: 'subject-2', defaultRoom: { roomTypeId: lab.id } }
   const T1 = { ...S(), name: 'Dana', maxWeeklyHours: 10, subjectIds: [math.id], dayOff: 2 as Weekday }
   const T2 = { ...S(), name: 'Yossi', maxWeeklyHours: 6, subjectIds: [sci.id], dayOff: 1 as Weekday }
-  const C1 = { ...S(), grade: 7, parallel: 1, displayName: "ז'1", homeroomRoomId: R1.id, homeroomTeacherId: T1.id }
-  const C2 = { ...S(), grade: 7, parallel: 2, displayName: "ז'2", homeroomRoomId: R2.id, homeroomTeacherId: null }
+  const C1 = { ...S(), grade: 7, parallel: 1, displayName: "ז׳1", homeroomRoomId: R1.id, homeroomTeacherId: T1.id }
+  const C2 = { ...S(), grade: 7, parallel: 2, displayName: "ז׳2", homeroomRoomId: R2.id, homeroomTeacherId: null }
   const g = (subjectId: string, t: string, c: string, weeklyHours: number, doubles = 0) =>
     ({ ...S(), subjectId, teacherIds: [t], classIds: [c], weeklyHours, doubles, clusterId: null, level: null })
   const gMath1 = g(math.id, T1.id, C1.id, 3)

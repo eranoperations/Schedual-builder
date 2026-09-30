@@ -1,0 +1,96 @@
+/* Tailwind v4 (CSS-first) + design tokens — design-spec §5.3 */
+@import "tailwindcss";
+@import "./design/tokens.css";
+
+@custom-variant print (@media print);
+
+/* Self-hosted Heebo variable (@fontsource-variable/heebo registers "Heebo Variable"). */
+:root {
+  --font-sans: "Heebo Variable", "Heebo", "Segoe UI", "Arial Hebrew", Arial, "Noto Sans Hebrew", system-ui, sans-serif;
+}
+
+@theme inline {
+  --color-canvas: var(--ui-bg);
+  --color-surface: var(--ui-surface);
+  --color-surface-sunken: var(--ui-surface-sunken);
+  --color-surface-sidebar: var(--ui-surface-sidebar);
+  --color-fg: var(--ui-text);
+  --color-fg-muted: var(--ui-text-muted);
+  --color-fg-subtle: var(--ui-text-subtle);
+  --color-fg-disabled: var(--ui-text-disabled);
+  --color-fg-link: var(--ui-text-link);
+  --color-line-subtle: var(--ui-border-subtle);
+  --color-line: var(--ui-border);
+  --color-line-control: var(--ui-border-control);
+  --color-line-strong: var(--ui-border-strong);
+  --color-primary: var(--ui-primary);
+  --color-primary-hover: var(--ui-primary-hover);
+  --color-primary-active: var(--ui-primary-active);
+  --color-primary-subtle: var(--ui-primary-subtle);
+  --color-primary-subtle-fg: var(--ui-primary-subtle-text);
+  --color-primary-foreground: var(--ui-text-on-primary);
+  --color-primary-track: var(--primary-100);
+  --color-primary-strong: var(--primary-700);
+  --color-success: var(--ui-success); --color-success-bg: var(--ui-success-bg); --color-success-fg: var(--ui-success-text); --color-success-border: var(--ui-success-border);
+  --color-warning: var(--ui-warning); --color-warning-bg: var(--ui-warning-bg); --color-warning-fg: var(--ui-warning-text); --color-warning-border: var(--ui-warning-border);
+  --color-error:   var(--ui-error);   --color-error-bg:   var(--ui-error-bg);   --color-error-fg:   var(--ui-error-text);   --color-error-border:   var(--ui-error-border);
+  --color-info:    var(--ui-info);    --color-info-bg:    var(--ui-info-bg);    --color-info-fg:    var(--ui-info-text);    --color-info-border:    var(--ui-info-border);
+  --color-chip-bg: var(--chip-bg); --color-chip-fg: var(--chip-fg); --color-chip-accent: var(--chip-accent);
+  --color-neutral-badge: var(--neutral-700);
+  /* shadcn names */
+  --color-background: var(--background); --color-foreground: var(--foreground);
+  --color-card: var(--card); --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover); --color-popover-foreground: var(--popover-foreground);
+  --color-secondary: var(--secondary); --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted); --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent); --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive); --color-destructive-foreground: var(--destructive-foreground);
+  --color-border: var(--border); --color-input: var(--input); --color-ring: var(--ring);
+  --color-sidebar: var(--sidebar); --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-primary: var(--sidebar-primary); --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-accent: var(--sidebar-accent); --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-border: var(--sidebar-border); --color-sidebar-ring: var(--sidebar-ring);
+
+  --text-xs--line-height: var(--leading-xs);  --text-sm--line-height: var(--leading-sm);
+  --text-base--line-height: var(--leading-base); --text-lg--line-height: var(--leading-lg);
+  --text-xl--line-height: var(--leading-xl);  --text-2xl--line-height: var(--leading-2xl);
+  --text-3xl--line-height: var(--leading-3xl);
+
+  --shadow-drag: var(--shadow-drag);
+  --radius-chip: var(--chip-radius);
+  --ease-standard: var(--ease-standard);
+  --animate-pop-in: pop-in var(--duration-normal) var(--ease-out);
+}
+@keyframes pop-in { from { opacity: 0; transform: scale(.97) } to { opacity: 1; transform: scale(1) } }
+
+/* ---- app-level component styles (tokens only) ---- */
+.bg-offday-hatch { background: var(--grid-offday-hatch); }
+.bg-block-hard { background: var(--block-hard-bg); }
+.bg-block-soft { background: var(--block-soft-bg); }
+
+.timetable-grid { border-collapse: separate; border-spacing: 0; table-layout: fixed; width: 100%; }
+.timetable-grid th, .timetable-grid td { border-block-end: 1px solid var(--grid-line); border-inline-end: 1px solid var(--grid-line); }
+.timetable-grid thead th { background: var(--grid-header-bg); position: sticky; top: 0; z-index: var(--z-raised); }
+.timetable-grid td.lesson-cell { height: var(--grid-row-min); padding: var(--grid-cell-padding); vertical-align: top; background: var(--grid-cell-bg); }
+.timetable-grid tr.break-row td, .timetable-grid tr.break-row th { height: var(--grid-break-row); background: var(--bell-break-row-bg); }
+.timetable-grid[data-density="compact"] td.lesson-cell { height: 3rem; }
+
+.lesson-chip {
+  background: var(--chip-bg); color: var(--chip-fg);
+  border-inline-start: var(--chip-accent-width) solid var(--chip-accent);
+  border-radius: var(--chip-radius);
+  padding: var(--chip-padding-block) var(--chip-padding-inline);
+  height: 100%; min-height: 3.25rem; overflow: hidden; text-align: start;
+}
+.timetable-grid[data-density="compact"] .lesson-chip { min-height: 2.5rem; }
+.lesson-chip[data-double="true"] { background-image: linear-gradient(to bottom, transparent calc(50% - 0.5px), color-mix(in srgb, var(--chip-accent) 40%, transparent) calc(50% - 0.5px), color-mix(in srgb, var(--chip-accent) 40%, transparent) calc(50% + 0.5px), transparent calc(50% + 0.5px)); background-size: calc(100% - 1rem) 100%; background-position: center; background-repeat: no-repeat; }
+.subject-swatch { background: var(--chip-accent); }
+
+@media print {
+  .print-title { font-size: var(--print-font-size-title); font-weight: 700; }
+  .timetable-grid thead th { position: static; }
+  .timetable-grid td.lesson-cell { height: var(--print-row-min); }
+  .lesson-chip { min-height: 0; font-size: var(--print-font-size); }
+  .lesson-chip .chip-meta { font-size: var(--print-font-size-meta); }
+  body { background: #FFFFFF; }
+}

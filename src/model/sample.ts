@@ -22,20 +22,20 @@ const ROOM_TYPES: [RoomTypeKey, string][] = [
 ]
 
 const SUBJECTS: [SubjectKey, string, string, RoomTypeKey | 'homeroom'][] = [
-  ['math', 'מתמטיקה', '#4e79a7', 'homeroom'],
-  ['english', 'אנגלית', '#f28e2b', 'homeroom'],
-  ['hebrew', 'עברית', '#e15759', 'homeroom'],
-  ['tanach', 'תנ"ך', '#76b7b2', 'homeroom'],
-  ['science', 'מדע וטכנולוגיה', '#59a14f', 'lab'],
-  ['history', 'היסטוריה', '#edc948', 'homeroom'],
-  ['geography', 'גאוגרפיה', '#b07aa1', 'homeroom'],
-  ['literature', 'ספרות', '#ff9da7', 'homeroom'],
-  ['civics', 'אזרחות', '#a0cbe8', 'homeroom'],
-  ['pe', 'חינוך גופני', '#9c755f', 'gym'],
-  ['homeroom', 'שעת חינוך', '#bab0ac', 'homeroom'],
-  ['arabic', 'ערבית', '#d37295', 'homeroom'],
-  ['computers', 'מדעי המחשב', '#86bcb6', 'computers'],
-  ['art', 'אמנות', '#8cd17d', 'art'],
+  ['math', 'מתמטיקה', 'subject-1', 'homeroom'],
+  ['english', 'אנגלית', 'subject-9', 'homeroom'],
+  ['hebrew', 'עברית', 'subject-6', 'homeroom'],
+  ['tanach', 'תנ״ך', 'subject-12', 'homeroom'],
+  ['science', 'מדע וטכנולוגיה', 'subject-10', 'lab'],
+  ['history', 'היסטוריה', 'subject-5', 'homeroom'],
+  ['geography', 'גאוגרפיה', 'subject-3', 'homeroom'],
+  ['literature', 'ספרות', 'subject-2', 'homeroom'],
+  ['civics', 'אזרחות', 'subject-11', 'homeroom'],
+  ['pe', 'חינוך גופני', 'subject-8', 'gym'],
+  ['homeroom', 'שעת חינוך', 'subject-7', 'homeroom'],
+  ['arabic', 'ערבית', 'subject-4', 'homeroom'],
+  ['computers', 'מדעי המחשב', 'subject-1', 'computers'],
+  ['art', 'אמנות', 'subject-9', 'art'],
 ]
 
 /** [weekly hours, doubles] per grade. 36 / 36 / 35 hours. */
@@ -66,8 +66,10 @@ function base(name: string, template: WeekTemplate) {
   return { school, roomTypes, subjects, sid, room, teacher, klass, group, block }
 }
 
+const AUTO_SUBJECTS: SubjectKey[] = ['pe', 'arabic']
+
 /**
- * 9 classes (ז'1–ט'3), 21 teachers, 15 rooms, 114 study groups, Sun–Thu
+ * 9 classes (ז׳1–ט׳3), 21 teachers, 15 rooms, 114 study groups, Sun–Thu
  * template (40 lesson slots). Σ class hours = 321; every teacher ≤ X ≤ 23,
  * daily cap 6 (school rule). Verified solvable by the test-suite.
  */
@@ -123,7 +125,10 @@ export function sampleSchoolProject(): SchoolProject {
     const cur = CURRICULUM[c.grade as 7 | 8 | 9]
     for (const [k, v] of Object.entries(cur) as [SubjectKey, [number, number]][]) {
       const t = perClass[k]?.[ci] ?? byGrade[k]![c.grade - 7]
-      groups.push(b.group(k, t.id, c.id, v[0], v[1]))
+      const g = b.group(k, t.id, c.id, v[0], v[1])
+      // v0.5.1: a mix of fixed and "Auto" groups: PE and Arabic are left for the solver to assign.
+      if (AUTO_SUBJECTS.includes(k)) g.teacherIds = []
+      groups.push(g)
     }
     c.homeroomTeacherId = perClass.homeroom![ci].id
   })

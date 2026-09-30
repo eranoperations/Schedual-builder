@@ -1,0 +1,390 @@
+/* =============================================================================
+   tokens.css: design tokens for "מערכת שעות" (school timetable builder)
+   -----------------------------------------------------------------------------
+   Three tiers (per /workspace/web-design-kb/starter-tokens.css):
+     1. PRIMITIVES: raw ramps and scales. Components must NOT use these directly.
+     2. SEMANTIC: role-based tokens (--ui-*). Themes remap ONLY this tier.
+     3. COMPONENT: timetable-specific tokens (grid, chip, sidebar…).
+   Plus: shadcn/ui variable bridge, subject palette, print tokens, base rules.
+   Every contrast ratio in comments was computed with WCAG 2.x relative luminance
+   (see contrast_check.py in this folder; re-run it after any colour change).
+   Light theme only for v1. The semantic tier is ready for a later dark remap.
+   Import once, before Tailwind's layers:  @import "./tokens.css";
+   ========================================================================== */
+
+:root {
+  /* ---------------------------------------------------------------------------
+     1. PRIMITIVES
+     ------------------------------------------------------------------------ */
+
+  /* Neutral ramp: cool slate (does 70–90% of the UI).        vs #FFF | vs n-50 */
+  --neutral-0:   #FFFFFF;
+  --neutral-25:  #FBFCFD;  /* sidebar surface */
+  --neutral-50:  #F6F7F9;  /* app background */
+  --neutral-100: #EEF0F3;  /* hover rows, wells, unavailable-cell base */
+  --neutral-200: #E1E4E9;  /* dividers, hatch stripe */
+  --neutral-300: #CDD2D9;  /* decorative borders (1.52:1, NOT for controls) */
+  --neutral-400: #7E8693;  /* control borders & icons   3.67 | 3.43  (≥3:1 ✓) */
+  --neutral-500: #687180;  /* subtle text (min size 14px)  4.93 | 4.60 (≥4.5 ✓) */
+  --neutral-600: #4F5764;  /* muted text               7.29 | 6.80 */
+  --neutral-700: #3D444F;  /* sidebar text             9.82 | 9.16 */
+  --neutral-800: #2A3039;  /*                         13.29 | 12.40 */
+  --neutral-900: #1A1F27;  /* body text               16.55 | 15.44 */
+  --neutral-950: #0E1117;  /*                         18.90 | 17.63 */
+
+  /* Primary: "school blue" (hue ≈ 225).         vs #FFF (= white text on it) */
+  --primary-50:  #EEF4FF;  /* selected nav bg, selection tint */
+  --primary-100: #DCE8FF;
+  --primary-200: #BCD2FE;
+  --primary-300: #8DB2FB;
+  --primary-400: #5B8BF5;  /* 3.25 (icons only on white) */
+  --primary-500: #3B6DEB;  /* 4.59 */
+  --primary-600: #2556D6;  /* 6.21 primary button, focus ring */
+  --primary-700: #1D44B0;  /* 8.38 hover, links */
+  --primary-800: #1C3A8C;  /* 10.33 pressed, selected-nav text (9.35 on p-50) */
+  --primary-900: #1B326F;  /* 12.12 */
+  --primary-950: #131F44;  /* 16.07 */
+
+  /* Semantic hues. text-on-bg | text-on-white | white-on-solid | border-vs-bg */
+  --success-50: #ECFDF3; --success-500: #3F9A62; --success-600: #15803D; --success-700: #166534; /* 6.76 | 7.13 | 5.02 | 3.31 */
+  --warning-50: #FFF8E6; --warning-500: #A97A0B; --warning-600: #B45309; --warning-700: #92400E; /* 6.69 | 7.09 | 5.02 | 3.62 */
+  --error-50:   #FEF1F1; --error-500:   #E05A5A; --error-600:   #C62828; --error-700:   #A61B1B; /* 6.82 | 7.52 | 5.62 | 3.30 */
+  --info-50:    #EAF6FB; --info-500:    #3A93BA; --info-600:    #0369A1; --info-700:    #075985; /* 6.87 | 7.56 | 5.93 | 3.15 */
+
+  /* Subject palette (lesson chips). bg = chip fill, fg = chip text, accent =
+     4px inline-start stripe + legend swatch.     fg/bg | accent/#FFF | accent/bg */
+  --subject-1-bg:  #DBEAFE; --subject-1-fg:  #1E3A8A; --subject-1-accent:  #2563EB; /* blue    8.49 | 5.17 | 4.24 */
+  --subject-2-bg:  #D7F5E0; --subject-2-fg:  #14532D; --subject-2-accent:  #138A3F; /* green   7.82 | 4.44 | 3.81 */
+  --subject-3-bg:  #FEF0C7; --subject-3-fg:  #713F12; --subject-3-accent:  #B86A04; /* amber   7.64 | 4.12 | 3.63 */
+  --subject-4-bg:  #EDE4FF; --subject-4-fg:  #4C1D95; --subject-4-accent:  #7C3AED; /* violet  8.94 | 5.70 | 4.65 */
+  --subject-5-bg:  #FFE1E7; --subject-5-fg:  #881337; --subject-5-accent:  #E11D48; /* rose    7.82 | 4.70 | 3.84 */
+  --subject-6-bg:  #CCF5EE; --subject-6-fg:  #134E4A; --subject-6-accent:  #0B8278; /* teal    8.06 | 4.69 | 3.99 */
+  --subject-7-bg:  #FFE4CC; --subject-7-fg:  #7C2D12; --subject-7-accent:  #D14A08; /* orange  7.68 | 4.47 | 3.67 */
+  --subject-8-bg:  #FAE0FB; --subject-8-fg:  #701A75; --subject-8-accent:  #C026D3; /* fuchsia 8.18 | 4.71 | 3.84 */
+  --subject-9-bg:  #E6F5C4; --subject-9-fg:  #365314; --subject-9-accent:  #568A0B; /* lime    7.58 | 4.17 | 3.62 */
+  --subject-10-bg: #D5EFFC; --subject-10-fg: #0C4A6E; --subject-10-accent: #0284C7; /* sky     7.92 | 4.10 | 3.43 */
+  --subject-11-bg: #E0E4FF; --subject-11-fg: #312E81; --subject-11-accent: #4F46E5; /* indigo  9.09 | 6.29 | 5.00 */
+  --subject-12-bg: #EDE5DC; --subject-12-fg: #44342A; --subject-12-accent: #8A6A52; /* stone   9.51 | 4.92 | 3.95 */
+  /* 13th+ subject: reuse colours in the order below, always with the text label + abbreviation. */
+  --subject-other-bg: #EEF0F3; --subject-other-fg: #1A1F27; --subject-other-accent: #687180; /* 14.49 | 4.93 | 4.32 */
+
+  /* Spacing: 4px base (Tailwind default scale: 1 = 0.25rem). */
+  --space-0: 0; --space-px: 1px; --space-0-5: 0.125rem;
+  --space-1: 0.25rem;  /*  4 */ --space-1-5: 0.375rem; /* 6 */
+  --space-2: 0.5rem;   /*  8 */ --space-3: 0.75rem;   /* 12 */
+  --space-4: 1rem;     /* 16 */ --space-5: 1.25rem;   /* 20 */
+  --space-6: 1.5rem;   /* 24 */ --space-8: 2rem;      /* 32 */
+  --space-10: 2.5rem;  /* 40 */ --space-12: 3rem;     /* 48 */
+  --space-16: 4rem;    /* 64 */ --space-24: 6rem;     /* 96 */
+
+  /* Typography */
+  --font-sans: "Heebo", "Segoe UI", "Arial Hebrew", Arial, "Noto Sans Hebrew", system-ui, sans-serif;
+  --font-mono: ui-monospace, "Cascadia Mono", Consolas, "Liberation Mono", monospace;
+
+  /* Fixed app scale (admin tool: no fluid type; laptop 1280–1600px). size / line-height */
+  --text-2xs: 0.6875rem; --leading-2xs: 1rem;      /* 11/16 print-only captions; never on screen */
+  --text-xs:  0.75rem;   --leading-xs:  1rem;      /* 12/16 badges, counters, chip meta (weight ≥500) */
+  --text-sm:  0.875rem;  --leading-sm:  1.25rem;   /* 14/20 table cells, chips, helper text, buttons-sm */
+  --text-base:1rem;      --leading-base:1.5rem;    /* 16/24 body, inputs, buttons */
+  --text-lg:  1.125rem;  --leading-lg:  1.75rem;   /* 18/28 section titles (h3) */
+  --text-xl:  1.375rem;  --leading-xl:  1.875rem;  /* 22/30 page title (h1 in content) */
+  --text-2xl: 1.75rem;   --leading-2xl: 2.25rem;   /* 28/36 onboarding / results hero number */
+  --text-3xl: 2.25rem;   --leading-3xl: 2.75rem;   /* 36/44 big KPI numbers only */
+
+  --weight-regular: 400; --weight-medium: 500; --weight-semibold: 600; --weight-bold: 700;
+  --tracking-normal: 0;  /* never add letter-spacing to Hebrew; no ALL CAPS (Hebrew has no case) */
+
+  /* Radii */
+  --radius-xs: 0.125rem;  /*  2px */
+  --radius-sm: 0.25rem;   /*  4px checkboxes, blocks-editor cells */
+  --radius-md: 0.375rem;  /*  6px lesson chips, badges */
+  --radius-lg: 0.5rem;    /*  8px buttons, inputs, selects */
+  --radius-xl: 0.75rem;   /* 12px cards, popovers, panels */
+  --radius-2xl: 1rem;     /* 16px dialogs */
+  --radius-full: 9999px;  /* pills, avatars, step circles */
+
+  --border-width: 1px; --border-width-strong: 2px; --border-width-accent: 4px;
+
+  /* Shadows (one light source from above; border OR shadow, not both heavy) */
+  --shadow-color: 220 25% 12%;
+  --shadow-xs: 0 1px 2px hsl(var(--shadow-color) / 0.06);
+  --shadow-sm: 0 1px 2px hsl(var(--shadow-color) / 0.06), 0 1px 3px hsl(var(--shadow-color) / 0.10);
+  --shadow-md: 0 2px 4px hsl(var(--shadow-color) / 0.06), 0 4px 12px hsl(var(--shadow-color) / 0.10);
+  --shadow-lg: 0 4px 8px hsl(var(--shadow-color) / 0.06), 0 12px 32px hsl(var(--shadow-color) / 0.16);
+  --shadow-drag: 0 6px 12px hsl(var(--shadow-color) / 0.12), 0 16px 40px hsl(var(--shadow-color) / 0.22);
+
+  /* Motion */
+  --duration-instant: 50ms;
+  --duration-fast: 100ms;    /* hover, press, toggle */
+  --duration-quick: 150ms;   /* tooltip, drop-target highlight */
+  --duration-normal: 200ms;  /* popover, dropdown, exits */
+  --duration-medium: 300ms;  /* dialog / sheet enter */
+  --duration-slow: 400ms;    /* max for UI */
+  --ease-standard: cubic-bezier(0.2, 0, 0, 1);   /* move A→B (lesson settling into cell) */
+  --ease-out: cubic-bezier(0, 0, 0, 1);          /* enter */
+  --ease-in: cubic-bezier(0.3, 0, 1, 1);         /* exit */
+  --ease-linear: linear;                         /* spinners, progress only */
+
+  /* Z-index (named layers only) */
+  --z-base: 0;
+  --z-raised: 10;       /* sticky grid headers inside scroll area */
+  --z-sticky: 1100;     /* top bar, action bar */
+  --z-sidebar: 1150;
+  --z-dropdown: 1200;   /* select, combobox, popover (conflict popover) */
+  --z-drag: 1250;       /* dnd-kit DragOverlay */
+  --z-overlay: 1300;    /* scrim */
+  --z-modal: 1400;      /* dialog, sheet */
+  --z-toast: 1500;
+  --z-tooltip: 1600;
+
+  /* Sizing */
+  --control-sm: 2rem;       /* 32px compact buttons, table inline edit */
+  --control-md: 2.5rem;     /* 40px default */
+  --control-lg: 3rem;       /* 48px Generate CTA */
+  --target-min: 1.5rem;     /* 24px WCAG 2.5.8 */
+  --icon-sm: 1rem; --icon-md: 1.25rem; --icon-lg: 1.5rem;
+
+  /* ---------------------------------------------------------------------------
+     2. SEMANTIC TOKENS (light)
+     ------------------------------------------------------------------------ */
+  color-scheme: light;
+
+  --ui-bg: var(--neutral-50);            /* app canvas */
+  --ui-surface: var(--neutral-0);        /* cards, tables, grid */
+  --ui-surface-sunken: var(--neutral-100);
+  --ui-surface-sidebar: var(--neutral-25);
+  --ui-surface-inverse: var(--neutral-900);
+  --ui-overlay: rgb(14 17 23 / 0.5);     /* modal scrim */
+
+  --ui-text: var(--neutral-900);          /* 16.55 on surface, 15.44 on bg */
+  --ui-text-muted: var(--neutral-600);    /* 7.29 / 6.80 / 6.39 on sunken */
+  --ui-text-subtle: var(--neutral-500);   /* 4.93 / 4.60; FAILS on sunken (4.32): use muted there */
+  --ui-text-inverse: var(--neutral-50);   /* 15.44 on inverse */
+  --ui-text-disabled: var(--neutral-400);
+  --ui-text-link: var(--primary-700);     /* 8.38, underline in body copy */
+  --ui-text-on-primary: var(--neutral-0); /* 6.21 on primary-600 */
+
+  --ui-border-subtle: var(--neutral-200);   /* table row dividers */
+  --ui-border: var(--neutral-300);          /* card/panel outlines (decorative) */
+  --ui-border-control: var(--neutral-400);  /* inputs, checkboxes, grid cell toggles: 3.67 */
+  --ui-border-strong: var(--neutral-600);
+
+  --ui-primary: var(--primary-600);
+  --ui-primary-hover: var(--primary-700);
+  --ui-primary-active: var(--primary-800);
+  --ui-primary-subtle: var(--primary-50);
+  --ui-primary-subtle-text: var(--primary-800);
+  --ui-focus-ring: var(--primary-600);      /* 6.21 on white, 5.79 on bg */
+
+  --ui-success: var(--success-600); --ui-success-bg: var(--success-50); --ui-success-text: var(--success-700); --ui-success-border: var(--success-500);
+  --ui-warning: var(--warning-600); --ui-warning-bg: var(--warning-50); --ui-warning-text: var(--warning-700); --ui-warning-border: var(--warning-500);
+  --ui-error:   var(--error-600);   --ui-error-bg:   var(--error-50);   --ui-error-text:   var(--error-700);   --ui-error-border:   var(--error-500);
+  --ui-info:    var(--info-600);    --ui-info-bg:    var(--info-50);    --ui-info-text:    var(--info-700);    --ui-info-border:    var(--info-500);
+
+  /* ---------------------------------------------------------------------------
+     3. COMPONENT TOKENS
+     ------------------------------------------------------------------------ */
+  --topbar-height: 3.5rem;          /* 56px */
+  --sidebar-width: 16rem;           /* 256px expanded */
+  --sidebar-width-collapsed: 4rem;  /* 64px icon rail (auto in edit mode < 1440px) */
+  --stepper-height: 4.5rem;         /* 72px */
+  --actionbar-height: 4rem;         /* 64px sticky setup footer */
+  --panel-width: 20rem;             /* 320px unplaced-lessons / inspector panel */
+  --sheet-width: 35rem;             /* 560px side sheet (blocks editor, teacher sheet) */
+  --dialog-sm: 25rem; --dialog-md: 35rem; --dialog-lg: 45rem;
+  --content-max: 90rem;             /* 1440px */
+
+  --table-row-height: 2.75rem;      /* 44px */
+  --table-row-height-compact: 2.25rem;
+
+  --grid-period-col-width: 5.5rem;  /* 88px period label + time */
+  --grid-day-col-min: 8rem;         /* 128px minimum day column */
+  --grid-row-min: 4.5rem;           /* 72px lesson row */
+  --grid-break-row: 1.5rem;         /* 24px break separator row */
+  --grid-cell-padding: 0.25rem;
+  --grid-line: var(--neutral-200);
+  --grid-header-bg: var(--neutral-50);
+  --grid-cell-bg: var(--neutral-0);
+  --grid-offday-hatch: repeating-linear-gradient(135deg, var(--neutral-100) 0 6px, var(--neutral-200) 6px 8px);
+
+  --chip-radius: var(--radius-md);
+  --chip-padding-block: 0.25rem;
+  --chip-padding-inline: 0.5rem;
+  --chip-accent-width: var(--border-width-accent);
+
+  --avail-cell-size: 2.5rem;        /* 40px (kept for compatibility; blocks editor uses --block-cell-*) */
+
+  /* Blocks editor (design-spec §7.5) */
+  --block-cell-min-w: 2.75rem;      /* 44px */
+  --block-cell-min-h: 2.25rem;      /* 36px */
+  --block-hard-bg: repeating-linear-gradient(135deg, var(--neutral-100) 0 3px, var(--neutral-300) 3px 5px);
+  --block-hard-border: var(--neutral-500);
+  --block-hard-icon: var(--neutral-800);   /* 8.74:1 on n-300 stripe, 13.3 on n-100 */
+  --block-soft-bg: repeating-linear-gradient(135deg, var(--warning-50) 0 6px, var(--neutral-100) 6px 8px);
+  --block-soft-border: var(--warning-600); /* 2px dotted */
+  --block-soft-icon: var(--warning-700);
+  --block-active-ring: var(--primary-600);
+
+  /* Planning sheet (design-spec §7.7) */
+  --plan-cell-w: 7rem;              /* 112px (min 96px) */
+  --plan-cell-min-w: 6rem;
+  --plan-cell-h: 3.5rem;            /* 56px */
+  --plan-class-col-w: 8.5rem;       /* sticky class column */
+  --plan-total-col-w: 6rem;         /* sticky row-total column */
+  --plan-grade-row-h: 2.25rem;
+  --plan-grade-row-bg: var(--neutral-100);
+  --plan-highlight-bg: var(--primary-100);
+  --plan-selected-bg: var(--primary-50);
+  --plan-error-bg: var(--error-50);
+  --plan-error-border: var(--error-600);   /* dashed 2px: teacher missing */
+  --plan-panel-w: 17.5rem;          /* 280px teacher-load panel */
+
+  /* Bell schedule editor (design-spec §7.17) */
+  --bell-join-connector: var(--primary-600);
+  --bell-break-row-bg: var(--neutral-50);
+
+  --drop-valid-bg: var(--success-50);     --drop-valid-border: var(--success-600);   /* dashed 2px, 5.02 vs white */
+  --drop-warning-bg: var(--warning-50);   --drop-warning-border: var(--warning-600);
+  --drop-invalid-bg: var(--error-50);     --drop-invalid-border: var(--error-600);   /* 5.62 vs white */
+  --conflict-ring: var(--error-600);      /* ≥4.47 vs every chip bg */
+
+  /* Focus ring recipe */
+  --focus-ring-width: 2px;
+  --focus-ring-offset: 2px;
+
+  /* ---------------------------------------------------------------------------
+     PRINT TOKENS (used only inside @media print; see design-spec §11)
+     ------------------------------------------------------------------------ */
+  --print-page-size: A4 landscape;
+  --print-margin: 10mm;
+  --print-font-size: 9pt;           /* chip subject */
+  --print-font-size-meta: 7.5pt;    /* teacher / room line */
+  --print-font-size-title: 14pt;
+  --print-line: 0.75pt solid #000000;
+  --print-line-light: 0.5pt solid #7E7E7E;
+  --print-text: #000000;
+  --print-offday-fill: #E6E6E6;     /* grey fill, still 17:1 with black text */
+  --print-row-min: 13mm;
+}
+
+/* -----------------------------------------------------------------------------
+   Subject utility classes: data attribute drives colour. Values are the palette token keys
+   stored in Subject.colour (PRODUCT_SPEC v0.5): "subject-1".."subject-12"; "subject-other" is
+   the render fallback for a missing/unknown key.
+   -------------------------------------------------------------------------- */
+[data-subject-color="subject-1"]  { --chip-bg: var(--subject-1-bg);  --chip-fg: var(--subject-1-fg);  --chip-accent: var(--subject-1-accent); }
+[data-subject-color="subject-2"]  { --chip-bg: var(--subject-2-bg);  --chip-fg: var(--subject-2-fg);  --chip-accent: var(--subject-2-accent); }
+[data-subject-color="subject-3"]  { --chip-bg: var(--subject-3-bg);  --chip-fg: var(--subject-3-fg);  --chip-accent: var(--subject-3-accent); }
+[data-subject-color="subject-4"]  { --chip-bg: var(--subject-4-bg);  --chip-fg: var(--subject-4-fg);  --chip-accent: var(--subject-4-accent); }
+[data-subject-color="subject-5"]  { --chip-bg: var(--subject-5-bg);  --chip-fg: var(--subject-5-fg);  --chip-accent: var(--subject-5-accent); }
+[data-subject-color="subject-6"]  { --chip-bg: var(--subject-6-bg);  --chip-fg: var(--subject-6-fg);  --chip-accent: var(--subject-6-accent); }
+[data-subject-color="subject-7"]  { --chip-bg: var(--subject-7-bg);  --chip-fg: var(--subject-7-fg);  --chip-accent: var(--subject-7-accent); }
+[data-subject-color="subject-8"]  { --chip-bg: var(--subject-8-bg);  --chip-fg: var(--subject-8-fg);  --chip-accent: var(--subject-8-accent); }
+[data-subject-color="subject-9"]  { --chip-bg: var(--subject-9-bg);  --chip-fg: var(--subject-9-fg);  --chip-accent: var(--subject-9-accent); }
+[data-subject-color="subject-10"] { --chip-bg: var(--subject-10-bg); --chip-fg: var(--subject-10-fg); --chip-accent: var(--subject-10-accent); }
+[data-subject-color="subject-11"] { --chip-bg: var(--subject-11-bg); --chip-fg: var(--subject-11-fg); --chip-accent: var(--subject-11-accent); }
+[data-subject-color="subject-12"] { --chip-bg: var(--subject-12-bg); --chip-fg: var(--subject-12-fg); --chip-accent: var(--subject-12-accent); }
+[data-subject-color="subject-other"] { --chip-bg: var(--subject-other-bg); --chip-fg: var(--subject-other-fg); --chip-accent: var(--subject-other-accent); }
+
+/* -----------------------------------------------------------------------------
+   shadcn/ui bridge: shadcn components read these names. Keep them pointing at
+   the semantic tier (never at raw hex) so one change updates both systems.
+   -------------------------------------------------------------------------- */
+:root {
+  --background: var(--ui-bg);
+  --foreground: var(--ui-text);
+  --card: var(--ui-surface);             --card-foreground: var(--ui-text);
+  --popover: var(--ui-surface);          --popover-foreground: var(--ui-text);
+  --primary: var(--ui-primary);          --primary-foreground: var(--ui-text-on-primary);
+  --secondary: var(--neutral-100);          --secondary-foreground: var(--ui-text);      /* 14.49 */
+  --muted: var(--neutral-100);              --muted-foreground: var(--ui-text-muted);    /* 6.39 */
+  --accent: var(--primary-50);              --accent-foreground: var(--primary-800);        /* 9.35 */
+  --destructive: var(--error-600);          --destructive-foreground: var(--neutral-0);     /* 5.62 */
+  --border: var(--ui-border);
+  --input: var(--ui-border-control);
+  --ring: var(--ui-focus-ring);
+  --radius: var(--radius-lg);
+  --sidebar: var(--ui-surface-sidebar);  --sidebar-foreground: var(--neutral-700);       /* 9.56 */
+  --sidebar-primary: var(--ui-primary);  --sidebar-primary-foreground: var(--neutral-0);
+  --sidebar-accent: var(--primary-50);      --sidebar-accent-foreground: var(--primary-800);
+  --sidebar-border: var(--ui-border-subtle);
+  --sidebar-ring: var(--ui-focus-ring);
+}
+
+/* -----------------------------------------------------------------------------
+   Base rules
+   -------------------------------------------------------------------------- */
+html {
+  font-family: var(--font-sans);
+  font-size: 100%;                           /* never px on html (zoom / user prefs) */
+  line-height: var(--leading-base);
+  color: var(--ui-text);
+  background: var(--ui-bg);
+  text-size-adjust: 100%;
+  scroll-padding-top: calc(var(--topbar-height) + var(--space-4));  /* WCAG 2.4.11 */
+  font-synthesis: none;
+}
+body { font-size: var(--text-base); }
+h1, h2, h3 { line-height: 1.25; text-wrap: balance; letter-spacing: 0; }
+/* Heebo's digits are tabular by design (verified: equal advance widths);
+   the feature setting future-proofs fallback fonts that support tnum. */
+.num, td.num, [data-numeric] { font-variant-numeric: tabular-nums; text-align: end; }
+/* Times, ranges, codes inside Hebrew text: isolate as LTR so "08:00–08:45" doesn't reorder. */
+.ltr-isolate { direction: ltr; unicode-bidi: isolate; }
+
+:focus-visible {
+  outline: var(--focus-ring-width) solid var(--ui-focus-ring);
+  outline-offset: var(--focus-ring-offset);
+}
+/* On coloured chips use the darker ring so it stays ≥6.67:1 on every chip bg */
+.lesson-chip:focus-visible { outline-color: var(--primary-700); }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+@media (forced-colors: active) {
+  .lesson-chip { border: 1px solid CanvasText; }
+  .lesson-chip[data-conflict="error"] { outline: 3px dashed Mark; }
+  [data-cell-state="unavailable"] { background: GrayText; }
+  [data-block="hard"] { background: GrayText; forced-color-adjust: none; color: Canvas; }
+  [data-block="soft"] { outline: 2px dotted CanvasText; outline-offset: -2px; }
+  [data-plan-state="error"] { outline: 2px dashed Mark; outline-offset: -2px; }
+}
+
+/* Blocks editor cells (design-spec §7.5): state via data-block="hard|soft" */
+[data-block="hard"] { background: var(--block-hard-bg); border: 1px solid var(--block-hard-border); color: var(--block-hard-icon); }
+[data-block="soft"] { background: var(--block-soft-bg); outline: 2px dotted var(--block-soft-border); outline-offset: -2px; color: var(--block-soft-icon); }
+[data-block-active="true"] { box-shadow: inset 0 0 0 2px var(--block-active-ring); }
+
+/* Double lesson (design-spec §7.9): one <td rowspan="2|3"> */
+.timetable-grid td[data-double="true"] { vertical-align: top; height: 1px; } /* height:1px lets the child fill the rowspan */
+.timetable-grid td[data-double="true"] > .lesson-chip { height: 100%; }
+
+/* -----------------------------------------------------------------------------
+   Print (A4 landscape, grayscale-safe). Full rules in design-spec §11.
+   -------------------------------------------------------------------------- */
+@page { size: A4 landscape; margin: 10mm; }
+@media print {
+  html { background: #FFFFFF; color: #000000; font-size: 9pt; }
+  .no-print, [data-print="hide"] { display: none !important; }
+  .print-page { break-after: page; }
+  .print-page:last-child { break-after: auto; }
+  .timetable-grid { width: 100%; border-collapse: collapse; table-layout: fixed; }
+  .timetable-grid th, .timetable-grid td { border: var(--print-line); }
+  .timetable-grid tr, .timetable-grid td[data-double="true"] { break-inside: avoid; }
+  .lesson-chip {
+    background: #FFFFFF !important; color: #000000 !important;
+    border: 0 !important; box-shadow: none !important;
+    print-color-adjust: economy;
+  }
+  [data-cell-state="offday"], [data-cell-state="unavailable"] {
+    background: var(--print-offday-fill) !important;
+    print-color-adjust: exact; -webkit-print-color-adjust: exact;
+  }
+  a { color: #000000; text-decoration: none; }
+}

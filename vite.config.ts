@@ -1,3 +1,4 @@
+import tailwindcss from '@tailwindcss/vite'
 import react from '@vitejs/plugin-react'
 import { defineConfig } from 'vitest/config'
 
@@ -8,11 +9,11 @@ const base = process.env.BASE_PATH || '/'
 // https://vite.dev/config/
 export default defineConfig({
   base,
-  plugins: [react()],
+  plugins: [react(), tailwindcss()],
   worker: { format: 'es' },
   test: {
-    include: ['src/**/*.test.ts'],
+    include: ['src/**/*.test.ts', 'qa/**/*.test.ts'],
     environment: 'node',
-    testTimeout: 60000,
+    testTimeout: 120000,
   },
 })

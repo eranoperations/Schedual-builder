@@ -2,12 +2,15 @@
  * Pre-solve validation (spec US-8). Every `error` is a proof that no timetable
  * satisfying §3.1 exists (or that the data is invalid per §2) and is shown in
  * plain language with a link to the record to fix. Warnings don't block.
- * Also serves as the "teacher assignment pre-check": qualification, weekly max
- * vs load, daily max × working days, unblocked-slot capacity.
+ * Also serves as the teacher pre-check: qualification, fixed load vs X, daily
+ * max × working days, unblocked-slot capacity, and for auto groups (v0.5.1) a
+ * qualified teacher exists, per-subject auto hours ≤ free capacity, and an
+ * overall max-flow assignment check.
  */
 import type { EntityKind, Issue, SchoolSnapshot, Weekday } from '../model/types'
 import { teachingDays, validateWeek } from '../model/week'
 import { compile, resolveRoomRequirement } from './compile'
+import { assignmentFlow } from './assign'
 import { nameLookup } from './names'
 
 export function validate(data: SchoolSnapshot): Issue[] {
@@ -50,7 +53,8 @@ export function validate(data: SchoolSnapshot): Issue[] {
     const p = { subject: name(g.subjectId), class: g.classIds.map(name).join(', '), teacher: g.teacherIds.map(name).join(', ') }
     const gref = ['group', g.id] as const
     if (!subjectIds.has(g.subjectId)) error('E_GROUP_UNKNOWN_SUBJECT', p, ...gref)
-    if (!g.teacherIds.length) error('E_GROUP_NO_TEACHER', p, ...gref)
+    const G0 = cp.groups[gi]
+    if (G0.auto && !G0.candidates.length) error('E_GROUP_NO_QUALIFIED_TEACHER', p, ...gref)
     if (!g.classIds.length) error('E_GROUP_NO_CLASS', p, ...gref)
     if (g.teacherIds.some((t) => !cp.teacherIdx.has(t)) || g.classIds.some((c) => !cp.classIdx.has(c))) error('E_GROUP_UNKNOWN_REFERENCE', p, ...gref)
     if (!Number.isInteger(g.weeklyHours) || g.weeklyHours <= 0) error('E_GROUP_HOURS_INVALID', { ...p, hours: g.weeklyHours }, ...gref)
@@ -77,25 +81,23 @@ export function validate(data: SchoolSnapshot): Issue[] {
       else homeroomDemand.set(req.roomId, (homeroomDemand.get(req.roomId) ?? 0) + g.weeklyHours)
     }
     // slot availability for this group (all teachers and classes free of hard blocks/day off)
+    // (auto groups: the check must fail for EVERY qualified candidate to be an error)
     const G = cp.groups[gi]
-    if (G.teachers.length && G.classes.length) {
-      const ok = (s: number) => G.teachers.every((t) => cp.teacherOk[t * S + s]) && G.classes.every((c) => cp.classOk[c * S + s])
-      let common = 0
-      let pairs = 0
-      for (let s = 0; s < S; s++) {
-        if (!ok(s)) continue
-        common++
-        const s2 = slots.nextJoin[s]
-        if (s2 >= 0 && ok(s2)) pairs++
-      }
-      if (common < g.weeklyHours) error('E_GROUP_NOT_ENOUGH_SLOTS', { ...p, hours: g.weeklyHours, slots: common }, ...gref)
-      if (g.doubles > 0 && pairs === 0) error('E_GROUP_NO_JOINABLE_PAIR', { ...p, doubles: g.doubles }, ...gref)
-      else if (g.doubles > 0) {
-        // doubles on distinct days are not required, but two doubles can't overlap: count disjoint pairs
-        let disjoint = 0
+    const options = G.auto ? G.candidates.map((t) => [t]) : [G.teachers]
+    if (options.length && options[0].length && G.classes.length) {
+      const evalOpt = (ts: number[]) => {
+        const ok = (s: number) => ts.every((t) => cp.teacherOk[t * S + s]) && G.classes.every((c) => cp.classOk[c * S + s])
+        let common = 0
+        let disjoint = 0 // non-overlapping joinable pairs (two doubles can't overlap)
+        for (let s = 0; s < S; s++) if (ok(s)) common++
         for (let s = 0; s < S; s++) { const s2 = slots.nextJoin[s]; if (s2 >= 0 && ok(s) && ok(s2)) { disjoint++; s++ } }
-        if (disjoint < g.doubles) error('E_GROUP_NO_JOINABLE_PAIR', { ...p, doubles: g.doubles }, ...gref)
+        return { common, disjoint }
       }
+      const res = options.map(evalOpt)
+      const common = Math.max(...res.map((r) => r.common))
+      const disjoint = Math.max(...res.map((r) => r.disjoint))
+      if (common < g.weeklyHours) error('E_GROUP_NOT_ENOUGH_SLOTS', { ...p, hours: g.weeklyHours, slots: common }, ...gref)
+      if (g.doubles > 0 && disjoint < g.doubles) error('E_GROUP_NO_JOINABLE_PAIR', { ...p, doubles: g.doubles }, ...gref)
       if (g.weeklyHours > D * 2 && D > 0) warn('W_GROUP_SPREAD', { ...p, hours: g.weeklyHours, days: D }, ...gref)
     }
   })
@@ -126,6 +128,22 @@ export function validate(data: SchoolSnapshot): Issue[] {
     if (load === 0) info('I_TEACHER_NO_GROUPS', { teacher: t.name }, 'teacher', t.id)
   })
 
+  // ---- auto-group teacher assignment (v0.5.1): per-subject capacity + overall max-flow ----
+  if (cp.groups.some((G) => G.auto && G.baseValid)) {
+    const flow = assignmentFlow(cp)
+    let subjectShort = false
+    for (const sc of flow.subjects) {
+      if (sc.hours > sc.free) {
+        subjectShort = true
+        const sid = data.subjects[sc.subj]?.id
+        error('E_SUBJECT_AUTO_CAPACITY', { subject: name(sid ?? ''), hours: sc.hours, free: sc.free }, 'subject', sid)
+      }
+    }
+    if (!subjectShort && flow.assignable < flow.autoHours) {
+      error('E_AUTO_ASSIGNMENT_INFEASIBLE', { hours: flow.autoHours, assignable: flow.assignable, missing: flow.autoHours - flow.assignable }, 'group')
+    }
+  }
+
   // ---- classes ----------------------------------------------------------------
   data.classes.forEach((c, ci) => {
     let avail = 0
@@ -142,8 +160,14 @@ export function validate(data: SchoolSnapshot): Issue[] {
   data.rooms.forEach((r) => { if (!roomTypeIds.has(r.roomTypeId)) warn('W_ROOM_UNKNOWN_TYPE', { room: r.name }, 'room', r.id) })
   for (const [typeId, demand] of typeDemand) {
     const cap = data.rooms.reduce((a, r, ri) => a + (r.roomTypeId === typeId ? roomSlots(ri) : 0), 0)
-    if (cap > 0 && demand > cap) error('E_ROOM_TYPE_CAPACITY', { roomType: name(typeId), hours: demand, slots: cap }, 'roomType', typeId)
+    const nRooms = data.rooms.filter((r) => r.roomTypeId === typeId).length
+    // nRooms = 0 is reported per group (E_GROUP_NO_MATCHING_ROOM); cap = 0 with rooms means
+    // every room of the type is hard-blocked (or outside usable slots) all week.
+    if (nRooms > 0 && demand > cap) error('E_ROOM_TYPE_CAPACITY', { roomType: name(typeId), hours: demand, slots: cap }, 'roomType', typeId)
   }
+  const byHomeroom = new Map<string, string[]>()
+  for (const c of data.classes) if (c.homeroomRoomId && cp.roomIdx.has(c.homeroomRoomId)) byHomeroom.set(c.homeroomRoomId, [...(byHomeroom.get(c.homeroomRoomId) ?? []), c.displayName])
+  for (const [roomId, names] of byHomeroom) if (names.length > 1) warn('W_SHARED_HOMEROOM', { room: name(roomId), classes: names.join(', ') }, 'room', roomId)
   for (const [roomId, demand] of homeroomDemand) {
     const ri = cp.roomIdx.get(roomId)!
     const cap = roomSlots(ri)

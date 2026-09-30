@@ -1,5 +1,5 @@
 /**
- * Core data model — PRODUCT_SPEC.md v0.5 §2 / §3. Pure types, no runtime code.
+ * Core data model — PRODUCT_SPEC.md v0.5.1 §2 / §3. Pure types, no runtime code.
  *
  * Multi-school from day one: every record has a client-generated UUID `id`,
  * a `schoolId` (except School) and createdAt/updatedAt ISO timestamps.
@@ -128,7 +128,7 @@ export type Grade = 7 | 8 | 9
 export interface SchoolClass extends SchoolScoped {
   grade: number
   parallel: number
-  /** Auto-formatted (e.g. ז'3), editable. */
+  /** Auto-formatted (e.g. ז׳3), editable. */
   displayName: string
   homeroomRoomId: Id | null
   homeroomTeacherId?: Id | null
@@ -137,7 +137,11 @@ export interface SchoolClass extends SchoolScoped {
 /** קבוצת לימוד — the scheduled unit. */
 export interface StudyGroup extends SchoolScoped {
   subjectId: Id
-  /** MVP UI: exactly one. Solver and checker handle arrays. */
+  /**
+   * Fixed teacher(s). OPTIONAL since v0.5.1: an empty array means "Auto": the
+   * solver assigns exactly one qualified teacher who teaches every lesson of
+   * the group. MVP UI: zero or one. Solver and checker handle arrays.
+   */
   teacherIds: Id[]
   /** MVP UI: exactly one. Solver and checker handle arrays. */
   classIds: Id[]
@@ -173,6 +177,12 @@ export interface Block extends SchoolScoped {
 /** A placed lesson: one slot, or two for a double. */
 export interface Lesson {
   studyGroupId: Id
+  /**
+   * Resolved teachers of the group (fixed, or chosen by the solver for auto
+   * groups). Always set by the solver. When absent (hand-made data), the
+   * checker falls back to the group's fixed `teacherIds`.
+   */
+  teacherIds?: Id[]
   day: Weekday
   slotIds: Id[]
   /** One per class of the group (same order as classIds); empty if no room is needed. */
@@ -252,6 +262,11 @@ export type SolveStatus = 'complete' | 'infeasible' | 'incomplete' | 'cancelled'
 export interface SolveResult {
   status: SolveStatus
   lessons: Lesson[]
+  /**
+   * Resolved teachers per study group: the fixed teachers, or the one teacher
+   * the solver chose for an auto group (empty if an auto group got no teacher).
+   */
+  teacherAssignments: Record<Id, Id[]>
   unplaced: UnplacedLesson[]
   /** Blocking pre-solve findings (non-empty only when status = infeasible). */
   reasons: Issue[]
@@ -265,10 +280,12 @@ export interface SolveResult {
 export interface Timetable extends SchoolScoped {
   name: string
   status: 'draft' | 'accepted'
+  /** Resolved teachers of every group (fixed or solver-chosen), keyed by studyGroupId. */
+  teacherAssignments: Record<Id, Id[]>
   lessons: Lesson[]
   qualityReport: QualityMetric[]
   /** Solver metadata (extension). */
-  result: Omit<SolveResult, 'lessons' | 'qualityReport'>
+  result: Omit<SolveResult, 'lessons' | 'qualityReport' | 'teacherAssignments'>
 }
 
 /** Solver input: a snapshot of one school and all its records. */
@@ -312,3 +329,4 @@ export interface SolverOptions {
   /** Override internal soft weights (benchmarks/tests). */
   weights?: Partial<SoftWeights>
 }
+
