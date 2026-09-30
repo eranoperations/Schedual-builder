@@ -303,6 +303,23 @@ I.update({
 for code,(he,en) in I.items(): k(f'issues.{code}', he, en)
 k('issues.unknown','בעיה: {{code}}','Issue: {{code}}')
 
+# --- v0.5.2 UI shell (ship-now pass) ---
+for i,(he_,en_) in enumerate([('כחול','Blue'),('ירוק','Green'),('ענבר','Amber'),('סגול','Violet'),('ורוד','Rose'),('טורקיז','Teal'),('כתום','Orange'),('פוקסיה','Fuchsia'),('ליים','Lime'),('תכלת','Sky'),('אינדיגו','Indigo'),('אבן','Stone')], start=1):
+    k(f'color.subject-{i}', he_, en_)
+k('blocks.free','פנוי','Free'); k('blocks.helpCycle','לחיצה על תא מחליפה: פנוי → חסם קשיח → חסם רך → פנוי.','Click a cell to cycle: free → hard block → soft block → free.')
+k('classes.parallels','מספר מקבילות','Number of parallels')
+k('confirm.deleteSubject','מחיקת {{name}} תמחק גם {{count}} קבוצות לימוד. להמשיך?','Deleting {{name}} also deletes {{count}} study groups. Continue?')
+k('export.printHelp','להדפסה: פותחים את מערכת השעות, בוחרים כיתה, מורה או חדר ולוחצים ״הדפסה״.','To print: open the timetable, pick a class, teacher or room and press Print.')
+k('gen.minutes','{{n}} דק׳','{{n}} min'); k('gen.seconds','{{n}} שניות','{{n}} s')
+k('home.sampleConfirm','טעינת בית ספר לדוגמה תחליף את הנתונים הנוכחיים (אפשר לבטל עם ״ביטול פעולה״). להמשיך?','Loading a sample school replaces the current data (Undo is available). Continue?')
+k('home.samples','בתי ספר לדוגמה','Sample schools'); k('home.samplesHelp','חטיבת ביניים קטנה (9 כיתות) או גדולה (24 כיתות), מוכנות ליצירת מערכת.','A small (9 classes) or large (24 classes) middle school, ready to generate.')
+k('planning.addGroup','הוספת קבוצה','Add group')
+k('room.homeroom','כיתת האם','Homeroom'); k('room.none','ללא חדר','No room')
+k('roomType.new','סוג חדר חדש','New room type'); k('subject.new','מקצוע חדש','New subject'); k('teacher.new','מורה חדש','New teacher')
+k('timetable.daily','לפי יום: {{list}} (מקסימום {{max}})','Per day: {{list}} (max {{max}})')
+k('timetable.teacherSummary','{{hours}} שעות מתוך {{max}} ש״ש','{{hours}} of {{max}} weekly hours')
+k('week.regularName','רגיל','Regular'); k('week.fridayName','שישי','Friday')
+
 he = {key: v[0] for key, v in T.items()}
 en = {key: v[1] for key, v in T.items()}
 out = os.path.join(os.path.dirname(__file__), '..', 'src', 'i18n')

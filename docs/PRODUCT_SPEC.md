@@ -1,6 +1,7 @@
 # Product Spec: School Timetable Builder
 
 Status: draft v0.6 (2026-09-30). v0.6 = manual editing, subject short names, local school switcher and continuous validation, released after the first working solve. · Owner: Product Bot · Items still open are marked **[OPEN]**.
+**Current priority (2026-09-30, per Eran via Master Bot):** ship the current MVP with the demo school for Eran to review first. v0.6 is queued until after that review.
 **Change process:** model changes are batched into numbered releases and sent to Code Agent together. Wording fixes can happen anytime.
 Background research: `/workspace/research/israeli-school-timetable.md` (cited below as [R §n]).
 
@@ -322,5 +323,7 @@ Agreed with Website Design Bot on 2026-09-30 (design spec v1.1).
 - **Rules** are editable both in setup and in Settings.
 - **Shared homeroom:** two classes may share a homeroom, with a warning. The room clash constraint still applies.
 - **Class names** are stored with Hebrew geresh ׳ (U+05F3) and gershayim ״ (U+05F4), e.g. ז׳3, י״א2. An apostrophe or quote typed by the user is converted to them on input. Examples in this spec that use `'` mean ׳.
-- **No room for a group:** a group needs no room only when its own `room` override is explicitly set to `none` (e.g. outdoor PE). Otherwise it inherits the subject's requirement.
+- **No room for a group:** a group's effective room requirement is its own `room` override if set, otherwise the subject's `defaultRoom`. It needs no room when that effective requirement is `none`. That can be inherited from a subject (e.g. an online subject) or set on the group (e.g. outdoor PE for one class).
+- **No "remove from timetable":** every group must get exactly its weekly hours, so a placed lesson can't simply be removed. To teach fewer hours, edit the group in the planning sheet, which marks the timetable outdated.
+- **' and " conversion** applies in every text field, but only next to Hebrew letters, so English names like O'Brien stay intact.
 - **School year / terms:** not in v0.6. They come with timetable versions in Phase 2.
